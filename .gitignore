@@ -1,0 +1,48 @@
+# === Security & Environment ===
+# أهم سطر عشان الـ Credentials اللي عملناها
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# === Build & Dependencies ===
+# Node.js (لو شغال بـ Node على بورت 3000)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Python (عشان لو فيه سكريبتات Python أو AI)
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+
+# Docker
+.docker/
+
+# === OS Files ===
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# === Build Artifacts ===
+dist/
+build/
+out/
+*.so
+*.egg-info/
+
+# === AWS & IDE ===
+.aws/
+.vscode/
+.idea/
+*.swp
+*.bak
