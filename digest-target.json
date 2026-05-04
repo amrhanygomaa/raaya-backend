@@ -1,0 +1,4 @@
+{
+  "Arn": "arn:aws:lambda:us-east-1:204758922338:function:raaya-daily-digest",
+  "RoleArn": "arn:aws:iam::204758922338:role/raaya-lambda-role"
+}
