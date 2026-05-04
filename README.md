@@ -1,103 +1,160 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Raaya Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+[![NestJS](https://img.shields.io/badge/NestJS-E0234E?style=for-the-badge&logo=nestjs&logoColor=white)](https://nestjs.com/)
+[![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodemon&logoColor=white)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![AWS](https://img.shields.io/badge/AWS-FF9900?style=for-the-badge&logo=amazon-aws&logoColor=white)](https://aws.amazon.com/)
+[![License: Unlicensed](https://img.shields.io/badge/License-Unlicensed-red.svg)](https://choosealicense.com/licenses/unlicense/)
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+A robust backend service built with NestJS for the Raaya health management platform. This MVP provides AI-powered insights, secure authentication, job scheduling, and notification services deployed on AWS.
 
-## Raaya Backend
+## 🚀 Features
 
-NestJS backend for the Raaya graduation MVP.
+- **AI-Powered Insights**: Integrated with AWS Bedrock for intelligent health recommendations
+- **Secure Authentication**: JWT-based auth with AWS Cognito integration
+- **Role-Based Access Control**: Flexible user roles and permissions
+- **Job Scheduling**: Automated medication reminders and daily digests
+- **Real-time Notifications**: Push notifications for health events
+- **Cloud-Native Deployment**: Optimized for AWS with Lambda functions and EC2
 
-## Project Docs
+## 🛠️ Tech Stack
 
-- Environment and secrets: [docs/environment-and-secrets.md](docs/environment-and-secrets.md)
-- AWS-light foundation: [docs/aws-light-foundation.md](docs/aws-light-foundation.md)
-- AWS foundation checklist: [docs/aws-foundation-checklist.md](docs/aws-foundation-checklist.md)
-- Demo data plan: [docs/demo-data-plan.md](docs/demo-data-plan.md)
-- Demo script: [docs/demo-script.md](docs/demo-script.md)
-- Deployment checklist: [docs/deployment-checklist.md](docs/deployment-checklist.md)
-- Smoke test checklist: [docs/smoke-test-checklist.md](docs/smoke-test-checklist.md)
-- Monitoring runbook: [docs/monitoring-runbook.md](docs/monitoring-runbook.md)
-- S3 media bucket: [docs/s3-media-bucket.md](docs/s3-media-bucket.md)
-- Safe local template: [.env.example](.env.example)
+- **Framework**: [NestJS](https://nestjs.com/) - Progressive Node.js framework
+- **Language**: TypeScript
+- **Authentication**: AWS Cognito + Passport JWT
+- **AI/ML**: AWS Bedrock Runtime
+- **Database**: PostgreSQL (via AWS RDS)
+- **Deployment**: AWS EC2, Lambda, S3
+- **Monitoring**: AWS CloudWatch
+- **CI/CD**: GitHub Actions
 
-Deployment to AWS is manual-only from GitHub Actions to protect the graduation
-demo Free Tier setup. Pushes and pull requests run lint/tests, but they do not
-deploy unless the workflow is run manually with `deploy=true`.
+## 📋 Prerequisites
 
-## Description
+- Node.js (v18 or higher)
+- npm or yarn
+- AWS CLI configured (for deployment)
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## 🚀 Installation
 
-## Project setup
-
+1. Clone the repository:
 ```bash
-$ npm install
+git clone https://github.com/amrhanygomaa/raaya-backend.git
+cd raaya-backend
 ```
 
-## Compile and run the project
-
+2. Install dependencies:
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm install
 ```
 
-## Run tests
-
+3. Set up environment variables:
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+cp .env.example .env
+# Edit .env with your configuration
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## 🏃‍♂️ Running the Application
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+# Development mode
+npm run start:dev
+
+# Production build
+npm run build
+npm run start:prod
+
+# Testing
+npm run test
+npm run test:e2e
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## 📚 API Documentation
 
-## Resources
+The API provides endpoints for:
 
-Check out a few resources that may come in handy when working with NestJS:
+- **Authentication** (`/auth`): User login, token validation, role claims
+- **AI Insights** (`/ai`): Health recommendations and analysis
+- **Jobs** (`/jobs`): Medication scheduling and reminders
+- **Notifications** (`/notifications`): Push notification management
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
+For detailed API specs, see the [API documentation](docs/api.md) (coming soon).
+
+## 📁 Project Structure
+
+```
+src/
+├── ai/              # AI insights module
+├── auth/            # Authentication & authorization
+├── jobs/            # Job scheduling
+├── notifications/   # Notification services
+└── ...
+
+docs/                # Documentation
+├── environment-and-secrets.md
+├── deployment-checklist.md
+├── aws-light-foundation.md
+└── ...
+
+lambda/              # AWS Lambda functions
+├── lambda-daily-digest.js
+├── lambda-medication-reminder.js
+└── lambda-weekly-ai-summary.js
+```
+
+## 🚀 Deployment
+
+This project is designed for AWS deployment. See our deployment guides:
+
+- [AWS Foundation Checklist](docs/aws-foundation-checklist.md)
+- [Deployment Checklist](docs/deployment-checklist.md)
+- [Environment Setup](docs/environment-and-secrets.md)
+
+For manual deployment from GitHub Actions, use the `deploy=true` workflow parameter.
+
+## 🧪 Testing
+
+```bash
+# Run unit tests
+npm run test
+
+# Run e2e tests
+npm run test:e2e
+
+# Test coverage
+npm run test:cov
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 Documentation
+
+- [Environment and Secrets](docs/environment-and-secrets.md)
+- [AWS Light Foundation](docs/aws-light-foundation.md)
+- [Demo Script](docs/demo-script.md)
+- [Monitoring Runbook](docs/monitoring-runbook.md)
+- [S3 Media Bucket Setup](docs/s3-media-bucket.md)
+
+## 📝 License
+
+This project is unlicensed and proprietary.
+
+## 👥 Authors
+
+- **Amr Hany Gomaa** - *Initial work* - [amrhanygomaa](https://github.com/amrhanygomaa)
+
+## 🙏 Acknowledgments
+
+- NestJS team for the excellent framework
+- AWS for cloud services
+- All contributors and testers
+
+
 - Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
 - Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
 - Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
