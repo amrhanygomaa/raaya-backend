@@ -71,6 +71,8 @@ docker logs --tail 50 raaya-api
 ```
 
 For deeper troubleshooting, use [monitoring-runbook.md](monitoring-runbook.md).
+For the full presentation smoke pass, use
+[smoke-test-checklist.md](smoke-test-checklist.md).
 
 ## Rollback Or Restart
 

@@ -13,6 +13,7 @@ demo environment small, predictable, and easy to recover.
    - valid `COGNITO_CLIENT_ID`
    - valid `JOB_SECRET`
 4. If AI chat will be shown, enable it only right before the AI section.
+5. Confirm demo IDs and sample records from [demo-data-plan.md](demo-data-plan.md).
 
 ## Backend Health
 
@@ -150,3 +151,5 @@ End by showing the project is intentionally AWS-light:
 - no automatic Bedrock usage
 - scheduled jobs are lightweight Lambda-to-backend calls
 - AI output is supportive, non-diagnostic, and human-review flagged
+
+Record the final pass using [smoke-test-checklist.md](smoke-test-checklist.md).
