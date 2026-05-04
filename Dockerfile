@@ -1,18 +1,21 @@
-# 1. اختار نسخة Node مناسبة
-FROM node:20-slim
-
-# 2. تحديد فولدر الشغل جوه الـ Container
+# ── Stage 1: Build ──────────────────────────────────────
+FROM node:20-slim AS builder
 WORKDIR /app
 
-# 3. نسخ ملفات الـ package وتسطيب الـ dependencies
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
-# 4. نسخ باقي كود المشروع
 COPY . .
+RUN npm run build
 
-# 5. فتح البورت اللي السيرفر شغال عليه
+# ── Stage 2: Production ─────────────────────────────────
+FROM node:20-slim AS production
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci --only=production && npm cache clean --force
+
+COPY --from=builder /app/dist ./dist
+
 EXPOSE 3000
-
-# 6. أمر التشغيل
-CMD ["npm", "start"]
+CMD ["node", "dist/main"]
