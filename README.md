@@ -28,9 +28,12 @@ NestJS backend for the Raaya graduation MVP.
 ## Project Docs
 
 - Environment and secrets: [docs/environment-and-secrets.md](docs/environment-and-secrets.md)
+- AWS-light foundation: [docs/aws-light-foundation.md](docs/aws-light-foundation.md)
+- AWS foundation checklist: [docs/aws-foundation-checklist.md](docs/aws-foundation-checklist.md)
 - Demo script: [docs/demo-script.md](docs/demo-script.md)
 - Deployment checklist: [docs/deployment-checklist.md](docs/deployment-checklist.md)
 - Monitoring runbook: [docs/monitoring-runbook.md](docs/monitoring-runbook.md)
+- S3 media bucket: [docs/s3-media-bucket.md](docs/s3-media-bucket.md)
 - Safe local template: [.env.example](.env.example)
 
 Deployment to AWS is manual-only from GitHub Actions to protect the graduation

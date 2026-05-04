@@ -26,6 +26,8 @@ Required local/backend variables:
 | `JOB_SECRET` | Shared secret for scheduled backend jobs | random demo secret |
 | `AI_ENABLED` | Enables Bedrock-backed demo chat when `true` | `false` |
 | `DEMO_RESIDENT_ID` | Resident id used by demo weekly summary job | `demo-resident` |
+| `S3_MEDIA_BUCKET` | Private S3 bucket for demo media uploads | placeholder only |
+| `S3_MEDIA_PREFIX` | Optional base prefix for media objects | empty |
 
 `COGNITO_JWKS_URI` is for tests/local overrides only. Leave it empty in the AWS
 demo so the app uses Cognito's normal JWKS endpoint.
@@ -96,3 +98,8 @@ docker restart raaya-api
 
 This avoids duplicate `AI_ENABLED` lines and keeps Bedrock disabled by default.
 The presentation flow is documented in [demo-script.md](demo-script.md).
+
+## S3 Media
+
+The planned S3 media setup is documented in [s3-media-bucket.md](s3-media-bucket.md).
+Keep the bucket private and use presigned URLs through the backend flow.

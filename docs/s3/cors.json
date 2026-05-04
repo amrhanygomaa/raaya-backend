@@ -1,0 +1,9 @@
+[
+  {
+    "AllowedHeaders": ["*"],
+    "AllowedMethods": ["GET", "PUT", "POST"],
+    "AllowedOrigins": ["https://REPLACE_WITH_DEMO_APP_ORIGIN"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3000
+  }
+]

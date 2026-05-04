@@ -13,12 +13,18 @@ Deployment is manual-only from GitHub Actions.
 3. Confirm the EC2 instance is needed for a demo or integration test.
 4. Confirm `/home/ec2-user/.env` exists on EC2.
 5. Confirm `AI_ENABLED=false` before deployment unless the demo explicitly needs AI.
-6. Confirm GitHub repository secrets exist:
+6. Confirm S3 media variables exist if media upload flows are being demonstrated:
+   - `S3_MEDIA_BUCKET`
+   - `S3_MEDIA_PREFIX`
+7. Confirm GitHub repository secrets exist:
    - `AWS_ACCESS_KEY_ID`
    - `AWS_SECRET_ACCESS_KEY`
    - `EC2_HOST`
    - `EC2_SSH_KEY`
    - `ECR_REGISTRY`
+
+For the full AWS-light environment evidence, use
+[aws-foundation-checklist.md](aws-foundation-checklist.md).
 
 ## Manual Deploy
 
@@ -101,10 +107,12 @@ curl http://localhost:3000/health
 - Keep `AI_ENABLED=false` outside the short AI demo section.
 - Stop EC2 when the demo environment is not needed.
 - Keep ECR image count small.
+- Keep S3 demo uploads small and delete temporary media after testing.
 - Keep CloudWatch logs quiet and review log volume before final demo week.
 - Use the lightweight templates in `docs/cloudwatch/` only if the demo needs
   dashboard/alarm evidence.
 - Do not create NAT Gateway, Multi-AZ RDS, or RDS Proxy for the graduation MVP.
+  See [aws-light-foundation.md](aws-light-foundation.md) for the full rationale.
 
 ## Handover Notes
 

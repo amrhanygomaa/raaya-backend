@@ -1,0 +1,22 @@
+{
+  "Rules": [
+    {
+      "ID": "AbortIncompleteMultipartUploads",
+      "Status": "Enabled",
+      "Filter": {},
+      "AbortIncompleteMultipartUpload": {
+        "DaysAfterInitiation": 1
+      }
+    },
+    {
+      "ID": "ExpireTemporaryUploads",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "tmp/"
+      },
+      "Expiration": {
+        "Days": 7
+      }
+    }
+  ]
+}
