@@ -2,6 +2,6 @@ import { Module } from '@nestjs/common';
 import { JobsController } from './jobs.controller';
 
 @Module({
-    controllers: [JobsController],
+  controllers: [JobsController],
 })
-export class JobsModule { }
+export class JobsModule {}
