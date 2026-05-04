@@ -5,6 +5,16 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: 'Deploy to the graduation demo EC2 instance'
+        required: true
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 env:
   AWS_REGION: us-east-1
@@ -30,17 +40,22 @@ jobs:
       - name: Run lint
         run: npm run lint
 
-      - name: Run tests
+      - name: Run unit tests
         run: npm run test
         env:
           NODE_ENV: test
 
-  # ── Job 2: Build & Deploy (main only) ───────────────
+      - name: Run auth e2e tests
+        run: npm run test:e2e -- --runInBand
+        env:
+          NODE_ENV: test
+
+  # ── Job 2: Build & Deploy (manual only) ─────────────
   deploy:
     name: Build & Deploy
     runs-on: ubuntu-latest
     needs: test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.deploy == 'true'
 
     steps:
       - uses: actions/checkout@v4
@@ -65,6 +80,21 @@ jobs:
                       $ECR_REGISTRY/$ECR_REPOSITORY:latest
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+      - name: Keep only recent ECR images
+        run: |
+          old_images=$(aws ecr describe-images \
+            --repository-name "$ECR_REPOSITORY" \
+            --query 'reverse(sort_by(imageDetails[?imageTags && !contains(imageTags, `latest`)], &imagePushedAt))[2:].imageDigest' \
+            --output text)
+
+          if [ -n "$old_images" ]; then
+            for digest in $old_images; do
+              aws ecr batch-delete-image \
+                --repository-name "$ECR_REPOSITORY" \
+                --image-ids imageDigest="$digest"
+            done
+          fi
 
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -102,4 +132,3 @@ jobs:
             curl -f http://localhost:3000/health \
               && echo "✅ Deploy OK" \
               || (echo "❌ Health check failed" && exit 1)
-            
