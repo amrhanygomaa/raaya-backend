@@ -3,6 +3,7 @@ import {
   AI_HUMAN_REVIEW_FLAG,
   AI_SAFE_FALLBACK_REPLY,
   AI_SUMMARY_DISCLAIMER,
+  analyzeSentiment,
   buildCompanionPrompt,
   buildWellbeingSummaryPrompt,
   containsUnsafeMedicalAdvice,
@@ -20,6 +21,41 @@ describe('AI guardrails', () => {
     expect(prompt).toContain('حاسس بقلق شوية');
     expect(prompt).toContain('لا تقدم أي نصائح طبية');
     expect(prompt).toContain('يتكلم مع الممرضة');
+  });
+
+  it('builds a companion prompt with conversation history', () => {
+    const prompt = buildCompanionPrompt({
+      residentName: 'أحمد',
+      message: 'كيف حالك اليوم؟',
+      conversationHistory: [
+        { role: 'user', content: 'أنا بخير' },
+        { role: 'assistant', content: 'ممتاز!' },
+      ],
+    });
+
+    expect(prompt).toContain('تاريخ المحادثة السابق');
+    expect(prompt).toContain('المستخدم: أنا بخير');
+    expect(prompt).toContain('الرفيق: ممتاز!');
+  });
+
+  it('builds a companion prompt with different languages', () => {
+    const prompt = buildCompanionPrompt({
+      residentName: 'أحمد',
+      message: 'Hello',
+      language: 'en',
+    });
+
+    expect(prompt).toContain('بالإنجليزية البسيطة');
+  });
+
+  it('builds a companion prompt with sentiment adjustment', () => {
+    const prompt = buildCompanionPrompt({
+      residentName: 'أحمد',
+      message: 'أنا حزين',
+      sentiment: 'negative',
+    });
+
+    expect(prompt).toContain('الرسالة سلبية، كن أكثر تعاطفاً ودعماً');
   });
 
   it('builds a short bilingual-friendly wellbeing summary prompt', () => {
@@ -46,6 +82,12 @@ describe('AI guardrails', () => {
 
     expect(containsUnsafeMedicalAdvice(reply)).toBe(false);
     expect(sanitizeAiReply(reply)).toBe(reply);
+  });
+
+  it('analyzes sentiment correctly', () => {
+    expect(analyzeSentiment('أنا سعيد جداً')).toBe('positive');
+    expect(analyzeSentiment('أنا حزين')).toBe('negative');
+    expect(analyzeSentiment('كيف حالك')).toBe('neutral');
   });
 
   it('replaces diagnosis language with a safe fallback', () => {

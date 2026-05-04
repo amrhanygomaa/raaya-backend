@@ -49,4 +49,17 @@ describe('AiController', () => {
       expect(response.generatedAt).toEqual(expect.any(String));
     });
   });
+
+  describe('chat', () => {
+    it('returns disabled message when AI is disabled', async () => {
+      process.env.AI_ENABLED = 'false';
+      const controller = new AiController();
+
+      const result = await controller.chat({ message: 'hello', residentName: 'test' });
+      expect(result).toEqual({
+        enabled: false,
+        reply: 'خاصية المحادثة غير متاحة حالياً',
+      });
+    });
+  });
 });

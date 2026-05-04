@@ -7,6 +7,9 @@ export const AI_SAFE_FALLBACK_REPLY =
 interface CompanionPromptInput {
   residentName: string;
   message: string;
+  conversationHistory?: { role: 'user' | 'assistant'; content: string }[];
+  language?: string;
+  sentiment?: string;
 }
 
 interface WellbeingSummaryPromptInput {
@@ -34,18 +37,38 @@ const unsafeMedicalPatterns = [
 export const buildCompanionPrompt = ({
   residentName,
   message,
-}: CompanionPromptInput): string => `أنت "رفيق"، مساعد شخصي داعم ومحب لمسن اسمه ${residentName}.
+  conversationHistory = [],
+  language = 'ar-eg',
+  sentiment = 'neutral',
+}: CompanionPromptInput): string => {
+  let dialectInstruction = 'باللهجة المصرية اليومية';
+  if (language === 'ar-sa') dialectInstruction = 'باللهجة السعودية';
+  else if (language === 'ar-levant') dialectInstruction = 'باللهجة الشامية';
+  else if (language === 'en') dialectInstruction = 'بالإنجليزية البسيطة';
+
+  let sentimentInstruction = '';
+  if (sentiment === 'positive') sentimentInstruction = 'الرسالة إيجابية، استمر في التشجيع.';
+  else if (sentiment === 'negative') sentimentInstruction = 'الرسالة سلبية، كن أكثر تعاطفاً ودعماً.';
+  else sentimentInstruction = 'الرسالة محايدة، رد بشكل طبيعي.';
+
+  const historyText = conversationHistory.length > 0
+    ? `\nتاريخ المحادثة السابق:\n${conversationHistory.map(h => `${h.role === 'user' ? 'المستخدم' : 'الرفيق'}: ${h.content}`).join('\n')}\n`
+    : '';
+
+  return `أنت "رفيق"، مساعد شخصي داعم ومحب لمسن اسمه ${residentName}.
 شخصيتك: دافئ، صبور، مشجع، ومهتم.
 ردودك:
-- باللهجة المصرية اليومية، ويمكنك فهم العربية أو الإنجليزية من المستخدم
+- ${dialectInstruction}، ويمكنك فهم العربية أو الإنجليزية من المستخدم
 - قصيرة وبسيطة (جملة أو جملتين بالكثير)
 - إيجابية ومشجعة
+- ${sentimentInstruction}
 - لا تقدم أي نصائح طبية أو تشخيصات أو جرعات أو خطة علاج
 - لو سألك عن صحته قول له يتكلم مع الممرضة
 - اختم بروح مطمئنة بدون وعود طبية
 - تذكر أنك تتحدث مع كبار السن، فكن صبورًا، احترم خبرتهم وذكرياتهم، واستخدم لغة تشعرهم بالراحة والاحترام
-
+${historyText}
 رسالة ${residentName}: ${message}`;
+};
 
 export const buildWellbeingSummaryPrompt = ({
   residentName,
@@ -71,4 +94,18 @@ export const sanitizeAiReply = (reply: string): string => {
   }
 
   return trimmedReply;
+};
+
+export const analyzeSentiment = (message: string): string => {
+  // Simple keyword-based sentiment analysis (can be enhanced with AI)
+  const positiveWords = ['سعيد', 'ممتاز', 'جيد', 'مبسوط', 'happy', 'good', 'great'];
+  const negativeWords = ['حزين', 'تعبان', 'سيء', 'قلق', 'sad', 'bad', 'worried'];
+
+  const lowerMessage = message.toLowerCase();
+  const positiveCount = positiveWords.filter(word => lowerMessage.includes(word)).length;
+  const negativeCount = negativeWords.filter(word => lowerMessage.includes(word)).length;
+
+  if (positiveCount > negativeCount) return 'positive';
+  if (negativeCount > positiveCount) return 'negative';
+  return 'neutral';
 };

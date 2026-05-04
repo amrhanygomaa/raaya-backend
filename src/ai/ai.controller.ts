@@ -14,6 +14,7 @@ import {
   AI_CHAT_DISCLAIMER,
   buildCompanionPrompt,
   sanitizeAiReply,
+  analyzeSentiment,
 } from './ai.guardrails';
 import {
   buildDemoRecommendation,
@@ -59,7 +60,7 @@ export class AiController {
   }
 
   @Post('chat')
-  async chat(@Body() body: { message: string; residentName: string }) {
+  async chat(@Body() body: { message: string; residentName: string; conversationHistory?: { role: 'user' | 'assistant'; content: string }[]; language?: string }) {
     const aiEnabled = process.env.AI_ENABLED === 'true';
     if (!aiEnabled) {
       return {
@@ -68,7 +69,14 @@ export class AiController {
       };
     }
 
-    const prompt = buildCompanionPrompt(body);
+    const sentiment = analyzeSentiment(body.message);
+    const prompt = buildCompanionPrompt({
+      residentName: body.residentName,
+      message: body.message,
+      conversationHistory: body.conversationHistory,
+      language: body.language,
+      sentiment,
+    });
 
     const command = new InvokeModelCommand({
       modelId: 'anthropic.claude-haiku-20240307-v1:0',
@@ -96,6 +104,7 @@ export class AiController {
       enabled: true,
       reply: sanitizeAiReply(reply),
       disclaimer: AI_CHAT_DISCLAIMER,
+      sentiment,
     };
   }
 }
