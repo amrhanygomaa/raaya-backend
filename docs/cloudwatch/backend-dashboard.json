@@ -1,0 +1,44 @@
+{
+  "widgets": [
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 0,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "region": "us-east-1",
+        "title": "Demo EC2 Health",
+        "metrics": [
+          [
+            "AWS/EC2",
+            "StatusCheckFailed",
+            "InstanceId",
+            "REPLACE_WITH_DEMO_EC2_INSTANCE_ID"
+          ],
+          [
+            ".",
+            "CPUUtilization",
+            ".",
+            "REPLACE_WITH_DEMO_EC2_INSTANCE_ID"
+          ]
+        ],
+        "period": 60,
+        "stat": "Maximum",
+        "view": "timeSeries"
+      }
+    },
+    {
+      "type": "log",
+      "x": 0,
+      "y": 6,
+      "width": 24,
+      "height": 6,
+      "properties": {
+        "region": "us-east-1",
+        "title": "Recent Backend Errors",
+        "query": "SOURCE '/raaya/backend' | fields @timestamp, @message | filter @message like /ERROR|Error|Exception/ | sort @timestamp desc | limit 20"
+      }
+    }
+  ]
+}

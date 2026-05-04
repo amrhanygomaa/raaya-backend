@@ -21,6 +21,22 @@
   <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
   [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
+## Raaya Backend
+
+NestJS backend for the Raaya graduation MVP.
+
+## Project Docs
+
+- Environment and secrets: [docs/environment-and-secrets.md](docs/environment-and-secrets.md)
+- Demo script: [docs/demo-script.md](docs/demo-script.md)
+- Deployment checklist: [docs/deployment-checklist.md](docs/deployment-checklist.md)
+- Monitoring runbook: [docs/monitoring-runbook.md](docs/monitoring-runbook.md)
+- Safe local template: [.env.example](.env.example)
+
+Deployment to AWS is manual-only from GitHub Actions to protect the graduation
+demo Free Tier setup. Pushes and pull requests run lint/tests, but they do not
+deploy unless the workflow is run manually with `deploy=true`.
+
 ## Description
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.

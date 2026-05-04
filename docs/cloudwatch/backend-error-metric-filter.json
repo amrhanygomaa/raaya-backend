@@ -1,0 +1,13 @@
+{
+  "logGroupName": "/raaya/backend",
+  "filterName": "raaya-backend-error-count",
+  "filterPattern": "\"ERROR\" \"Exception\" \"Error\"",
+  "metricTransformations": [
+    {
+      "metricName": "BackendErrorCount",
+      "metricNamespace": "Raaya/Demo",
+      "metricValue": "1",
+      "defaultValue": 0
+    }
+  ]
+}
