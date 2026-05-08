@@ -5,18 +5,20 @@ import { Roles } from './roles.decorator';
 
 // ── Helper: build a fake ExecutionContext ──────────────────────────────────
 const buildContext = (
-  userRole: string,
+  userRoles: string[],
   handlerRoles?: string[],
 ): ExecutionContext => {
   const mockHandler = () => {};
+  const mockClass = class {};
   if (handlerRoles) {
     Reflect.defineMetadata('roles', handlerRoles, mockHandler);
   }
 
   return {
     getHandler: () => mockHandler,
+    getClass: () => mockClass,
     switchToHttp: () => ({
-      getRequest: () => ({ user: { role: userRole } }),
+      getRequest: () => ({ user: { roles: userRoles } }),
     }),
   } as unknown as ExecutionContext;
 };
@@ -53,9 +55,8 @@ describe('RolesGuard', () => {
   // ── No @Roles decorator ────────────────────────────────────────────────
   describe('when no @Roles metadata is present', () => {
     it('allows access regardless of user role', () => {
-      const ctx = buildContext('Nurse');
-      jest.spyOn(reflector, 'get').mockReturnValue(undefined);
-
+      const ctx = buildContext(['Nurse']);
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(undefined);
       expect(guard.canActivate(ctx)).toBe(true);
     });
   });
@@ -63,26 +64,26 @@ describe('RolesGuard', () => {
   // ── Admin-only endpoint ────────────────────────────────────────────────
   describe('Admin-only endpoints', () => {
     beforeEach(() => {
-      jest.spyOn(reflector, 'get').mockReturnValue(['Admin']);
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['Admin']);
     });
 
     it('allows Admin users', () => {
-      const ctx = buildContext('Admin', ['Admin']);
+      const ctx = buildContext(['Admin'], ['Admin']);
       expect(guard.canActivate(ctx)).toBe(true);
     });
 
     it('rejects Doctor users with ForbiddenException', () => {
-      const ctx = buildContext('Doctor', ['Admin']);
+      const ctx = buildContext(['Doctor'], ['Admin']);
       expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
     });
 
     it('rejects Nurse users with ForbiddenException', () => {
-      const ctx = buildContext('Nurse', ['Admin']);
+      const ctx = buildContext(['Nurse'], ['Admin']);
       expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
     });
 
     it('rejects ClinicalStaff users with ForbiddenException', () => {
-      const ctx = buildContext('ClinicalStaff', ['Admin']);
+      const ctx = buildContext(['ClinicalStaff'], ['Admin']);
       expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
     });
   });
@@ -90,31 +91,31 @@ describe('RolesGuard', () => {
   // ── Clinical-only endpoint (Doctor | Nurse | ClinicalStaff) ───────────
   describe('Clinical-only endpoints', () => {
     beforeEach(() => {
-      jest.spyOn(reflector, 'get').mockReturnValue(['Doctor', 'Nurse', 'ClinicalStaff']);
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['Doctor', 'Nurse', 'ClinicalStaff']);
     });
 
     it('allows Doctor users', () => {
-      const ctx = buildContext('Doctor', ['Doctor', 'Nurse', 'ClinicalStaff']);
+      const ctx = buildContext(['Doctor'], ['Doctor', 'Nurse', 'ClinicalStaff']);
       expect(guard.canActivate(ctx)).toBe(true);
     });
 
     it('allows Nurse users', () => {
-      const ctx = buildContext('Nurse', ['Doctor', 'Nurse', 'ClinicalStaff']);
+      const ctx = buildContext(['Nurse'], ['Doctor', 'Nurse', 'ClinicalStaff']);
       expect(guard.canActivate(ctx)).toBe(true);
     });
 
     it('allows ClinicalStaff users', () => {
-      const ctx = buildContext('ClinicalStaff', ['Doctor', 'Nurse', 'ClinicalStaff']);
+      const ctx = buildContext(['ClinicalStaff'], ['Doctor', 'Nurse', 'ClinicalStaff']);
       expect(guard.canActivate(ctx)).toBe(true);
     });
 
     it('rejects Admin users from clinical-only endpoint', () => {
-      const ctx = buildContext('Admin', ['Doctor', 'Nurse', 'ClinicalStaff']);
+      const ctx = buildContext(['Admin'], ['Doctor', 'Nurse', 'ClinicalStaff']);
       expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
     });
 
     it('rejects unknown roles from clinical-only endpoint', () => {
-      const ctx = buildContext('Unknown', ['Doctor', 'Nurse', 'ClinicalStaff']);
+      const ctx = buildContext(['Unknown'], ['Doctor', 'Nurse', 'ClinicalStaff']);
       expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
     });
   });
@@ -122,23 +123,22 @@ describe('RolesGuard', () => {
   // ── Facility-scoped access: ensure the role check is role-agnostic ─────
   describe('Facility-scoped role enforcement', () => {
     it('allows a user whose role is in the allowed list', () => {
-      jest.spyOn(reflector, 'get').mockReturnValue(['FacilityManager']);
-      const ctx = buildContext('FacilityManager', ['FacilityManager']);
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['FacilityManager']);
+      const ctx = buildContext(['FacilityManager'], ['FacilityManager']);
       expect(guard.canActivate(ctx)).toBe(true);
     });
 
     it('denies a user whose facility role is not in the allowed list', () => {
-      jest.spyOn(reflector, 'get').mockReturnValue(['FacilityManager']);
-      const ctx = buildContext('Nurse', ['FacilityManager']);
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['FacilityManager']);
+      const ctx = buildContext(['Nurse'], ['FacilityManager']);
       expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
     });
   });
 
   // ── Error message ──────────────────────────────────────────────────────
-  it('throws ForbiddenException with the expected Arabic message', () => {
-    jest.spyOn(reflector, 'get').mockReturnValue(['Admin']);
-    const ctx = buildContext('Nurse', ['Admin']);
-
-    expect(() => guard.canActivate(ctx)).toThrow('ليس لديك صلاحية للوصول');
+  it('throws ForbiddenException with the expected message', () => {
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['Admin']);
+    const ctx = buildContext(['Nurse'], ['Admin']);
+    expect(() => guard.canActivate(ctx)).toThrow('Access denied');
   });
 });

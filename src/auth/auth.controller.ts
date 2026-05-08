@@ -5,7 +5,7 @@ interface AuthRequest {
   user: {
     userId: string;
     email: string;
-    role: string;
+    roles: string[];
     facilityId: string;
   };
 }
@@ -18,7 +18,7 @@ export class AuthController {
     return {
       userId: req.user.userId,
       email: req.user.email,
-      role: req.user.role,
+      roles: req.user.roles,
       facilityId: req.user.facilityId,
     };
   }

@@ -110,11 +110,11 @@ describe('AuthModule (e2e)', () => {
       .expect(401);
   });
 
-  it('/auth/me exposes Cognito role claims for a valid token', () => {
+  it('/auth/me exposes Cognito roles for a valid token', () => {
     const token = signJwt(privateKey, {
       sub: 'user-123',
       email: 'nurse@example.com',
-      'custom:role': 'Nurse',
+      'cognito:groups': ['Nurse'],
       'custom:facilityId': 'facility-1',
     });
 
@@ -125,7 +125,7 @@ describe('AuthModule (e2e)', () => {
       .expect({
         userId: 'user-123',
         email: 'nurse@example.com',
-        role: 'Nurse',
+        roles: ['Nurse'],
         facilityId: 'facility-1',
       });
   });
