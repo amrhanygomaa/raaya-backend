@@ -1,17 +1,26 @@
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { RolesGuard } from './roles.guard';
-import { Roles } from './roles.decorator';
+import { Roles, ROLES_KEY } from './roles.decorator';
 
-// ── Helper: build a fake ExecutionContext ──────────────────────────────────
+// ── Typed metadata helpers (avoids @typescript-eslint/unbound-method) ─────
+const defineRoles = (target: object, roles: string[]): void => {
+  Reflect.defineMetadata(ROLES_KEY, roles, target);
+};
+
+const getRoles = (target: object): string[] =>
+  (Reflect.getMetadata(ROLES_KEY, target) as string[] | undefined) ?? [];
+
+// ── Helper: build a typed fake ExecutionContext ────────────────────────────
 const buildContext = (
   userRoles: string[],
   handlerRoles?: string[],
 ): ExecutionContext => {
-  const mockHandler = () => {};
+  const mockHandler = (): void => {};
   const mockClass = class {};
+
   if (handlerRoles) {
-    Reflect.defineMetadata('roles', handlerRoles, mockHandler);
+    defineRoles(mockHandler, handlerRoles);
   }
 
   return {
@@ -23,25 +32,30 @@ const buildContext = (
   } as unknown as ExecutionContext;
 };
 
+// ── Roles decorator ────────────────────────────────────────────────────────
+
 describe('Roles decorator', () => {
   it('attaches the correct roles metadata to the handler', () => {
     const target = {};
-    const descriptor = { value: function handler() {} };
+    // Use an arrow fn so ESLint doesn't flag it as an unbound method
+    const handler = () => {};
+    const descriptor = { value: handler };
     Roles('Admin', 'Doctor')(target, 'handler', descriptor);
 
-    const meta = Reflect.getMetadata('roles', descriptor.value);
-    expect(meta).toEqual(['Admin', 'Doctor']);
+    expect(getRoles(handler)).toEqual(['Admin', 'Doctor']);
   });
 
   it('accepts a single role', () => {
     const target = {};
-    const descriptor = { value: function handler() {} };
+    const handler = () => {};
+    const descriptor = { value: handler };
     Roles('Admin')(target, 'handler', descriptor);
 
-    const meta = Reflect.getMetadata('roles', descriptor.value);
-    expect(meta).toEqual(['Admin']);
+    expect(getRoles(handler)).toEqual(['Admin']);
   });
 });
+
+// ── RolesGuard ─────────────────────────────────────────────────────────────
 
 describe('RolesGuard', () => {
   let guard: RolesGuard;
@@ -72,71 +86,70 @@ describe('RolesGuard', () => {
       expect(guard.canActivate(ctx)).toBe(true);
     });
 
-    it('rejects Doctor users with ForbiddenException', () => {
+    it('rejects Doctor users', () => {
       const ctx = buildContext(['Doctor'], ['Admin']);
       expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
     });
 
-    it('rejects Nurse users with ForbiddenException', () => {
+    it('rejects Nurse users', () => {
       const ctx = buildContext(['Nurse'], ['Admin']);
       expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
     });
 
-    it('rejects ClinicalStaff users with ForbiddenException', () => {
+    it('rejects ClinicalStaff users', () => {
       const ctx = buildContext(['ClinicalStaff'], ['Admin']);
       expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
     });
   });
 
-  // ── Clinical-only endpoint (Doctor | Nurse | ClinicalStaff) ───────────
+  // ── Clinical-only endpoint ─────────────────────────────────────────────
   describe('Clinical-only endpoints', () => {
     beforeEach(() => {
-      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['Doctor', 'Nurse', 'ClinicalStaff']);
+      jest
+        .spyOn(reflector, 'getAllAndOverride')
+        .mockReturnValue(['Doctor', 'Nurse', 'ClinicalStaff']);
     });
 
-    it('allows Doctor users', () => {
-      const ctx = buildContext(['Doctor'], ['Doctor', 'Nurse', 'ClinicalStaff']);
+    it.each(['Doctor', 'Nurse', 'ClinicalStaff'])('allows %s users', (role) => {
+      const ctx = buildContext([role], ['Doctor', 'Nurse', 'ClinicalStaff']);
       expect(guard.canActivate(ctx)).toBe(true);
     });
 
-    it('allows Nurse users', () => {
-      const ctx = buildContext(['Nurse'], ['Doctor', 'Nurse', 'ClinicalStaff']);
-      expect(guard.canActivate(ctx)).toBe(true);
-    });
-
-    it('allows ClinicalStaff users', () => {
-      const ctx = buildContext(['ClinicalStaff'], ['Doctor', 'Nurse', 'ClinicalStaff']);
-      expect(guard.canActivate(ctx)).toBe(true);
-    });
-
-    it('rejects Admin users from clinical-only endpoint', () => {
+    it('rejects Admin from clinical-only endpoint', () => {
       const ctx = buildContext(['Admin'], ['Doctor', 'Nurse', 'ClinicalStaff']);
       expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
     });
 
     it('rejects unknown roles from clinical-only endpoint', () => {
-      const ctx = buildContext(['Unknown'], ['Doctor', 'Nurse', 'ClinicalStaff']);
+      const ctx = buildContext(
+        ['Unknown'],
+        ['Doctor', 'Nurse', 'ClinicalStaff'],
+      );
       expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
     });
   });
 
-  // ── Facility-scoped access: ensure the role check is role-agnostic ─────
+  // ── Facility-scoped endpoint ───────────────────────────────────────────
   describe('Facility-scoped role enforcement', () => {
-    it('allows a user whose role is in the allowed list', () => {
-      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['FacilityManager']);
+    it('allows FacilityManager', () => {
+      jest
+        .spyOn(reflector, 'getAllAndOverride')
+        .mockReturnValue(['FacilityManager']);
       const ctx = buildContext(['FacilityManager'], ['FacilityManager']);
       expect(guard.canActivate(ctx)).toBe(true);
     });
 
-    it('denies a user whose facility role is not in the allowed list', () => {
-      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['FacilityManager']);
+    it('denies Nurse from facility-scoped endpoint', () => {
+      jest
+        .spyOn(reflector, 'getAllAndOverride')
+        .mockReturnValue(['FacilityManager']);
       const ctx = buildContext(['Nurse'], ['FacilityManager']);
       expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
     });
   });
 
   // ── Error message ──────────────────────────────────────────────────────
-  it('throws ForbiddenException with the expected message', () => {
+  it('throws ForbiddenException with "Access denied"', () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['Admin']);
     const ctx = buildContext(['Nurse'], ['Admin']);
     expect(() => guard.canActivate(ctx)).toThrow('Access denied');

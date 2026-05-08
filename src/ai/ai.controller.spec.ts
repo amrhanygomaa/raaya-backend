@@ -51,14 +51,98 @@ describe('AiController', () => {
   });
 
   describe('chat', () => {
-    it('returns disabled message when AI is disabled', async () => {
+    it('returns an interactive local reply when Bedrock AI is disabled', async () => {
       process.env.AI_ENABLED = 'false';
       const controller = new AiController();
 
-      const result = await controller.chat({ message: 'hello', residentName: 'test' });
-      expect(result).toEqual({
-        enabled: false,
-        reply: 'خاصية المحادثة غير متاحة حالياً',
+      const result = await controller.chat({
+        message: 'فاكر أنا بحب إيه؟',
+        residentName: 'أحمد',
+        memory: ['بيحب أم كلثوم'],
+      });
+      expect(result).toMatchObject({
+        enabled: true,
+        mode: 'local-fallback',
+        bedrockEnabled: false,
+        fallbackReason: 'ai_disabled',
+        disclaimer: expect.any(String) as string,
+        sentiment: 'neutral',
+        memoryUsed: true,
+      });
+      expect(result.reply).toContain('أحمد');
+      expect(result.reply).toContain('بيحب أم كلثوم');
+    });
+
+    it('stores resident memory and reuses it in local chat', async () => {
+      process.env.AI_ENABLED = 'false';
+      const controller = new AiController();
+
+      const saved = controller.saveMemory('resident-1', {
+        memory: [{ label: 'هواية', value: 'زراعة الريحان' }],
+      });
+      expect(saved).toMatchObject({
+        residentId: 'resident-1',
+        memory: ['هواية: زراعة الريحان'],
+      });
+
+      const result = await controller.chat({
+        residentId: 'resident-1',
+        residentName: 'منى',
+        message: 'فاكر عني إيه؟',
+      });
+
+      expect(result.memoryUsed).toBe(true);
+      expect(result.reply).toContain('زراعة الريحان');
+    });
+
+    it('accepts OpenAI-style messages and falls back if Bedrock fails', async () => {
+      process.env.AI_ENABLED = 'true';
+      const controller = new AiController({
+        send: jest.fn().mockRejectedValue(new Error('no credentials')),
+      });
+
+      const result = await controller.chat({
+        residentName: 'Mona',
+        language: 'en',
+        messages: [
+          { role: 'assistant', content: 'Good morning' },
+          { role: 'user', content: 'Do you remember my favorite song?' },
+        ],
+        memories: ['favorite song: Umm Kulthum'],
+      });
+
+      expect(result).toMatchObject({
+        enabled: true,
+        mode: 'local-fallback',
+        bedrockEnabled: false,
+        fallbackReason: 'bedrock_error',
+        memoryUsed: true,
+      });
+      expect(result.reply).toContain('Umm Kulthum');
+    });
+
+    it('returns sanitized Bedrock replies when AI is enabled', async () => {
+      process.env.AI_ENABLED = 'true';
+      const send = jest.fn().mockResolvedValue({
+        body: Buffer.from(
+          JSON.stringify({ content: [{ text: 'أنا معاك يا أحمد.' }] }),
+        ),
+      });
+      const controller = new AiController({ send });
+
+      const result = await controller.chat({
+        message: 'أهلاً',
+        residentName: 'أحمد',
+        memory: ['بيحب المشي'],
+      });
+
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(result).toMatchObject({
+        enabled: true,
+        mode: 'bedrock',
+        bedrockEnabled: true,
+        reply: 'أنا معاك يا أحمد.',
+        memoryUsed: true,
       });
     });
   });

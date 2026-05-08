@@ -110,7 +110,7 @@ describe('AuthModule (e2e)', () => {
       .expect(401);
   });
 
-  it('/auth/me exposes Cognito roles for a valid token', () => {
+  it('/auth/me exposes roles via cognito:groups', () => {
     const token = signJwt(privateKey, {
       sub: 'user-123',
       email: 'nurse@example.com',
@@ -127,6 +127,26 @@ describe('AuthModule (e2e)', () => {
         email: 'nurse@example.com',
         roles: ['Nurse'],
         facilityId: 'facility-1',
+      });
+  });
+
+  it('/auth/me falls back to custom:role when no cognito:groups', () => {
+    const token = signJwt(privateKey, {
+      sub: 'user-456',
+      email: 'doctor@example.com',
+      'custom:role': 'Doctor',
+      'custom:facilityId': 'facility-2',
+    });
+
+    return request(app.getHttpServer())
+      .get('/auth/me')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200)
+      .expect({
+        userId: 'user-456',
+        email: 'doctor@example.com',
+        roles: ['Doctor'],
+        facilityId: 'facility-2',
       });
   });
 
