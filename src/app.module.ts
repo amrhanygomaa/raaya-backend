@@ -12,21 +12,10 @@ import { UsersController } from './users/users.controller';
 import { RolesGuard } from './auth/roles.guard';
 
 @Module({
-  imports: [
-    JobsModule,
-    NotificationsModule,
-    AiModule,
-    AuthModule,
-  ],
+  imports: [JobsModule, NotificationsModule, AiModule, AuthModule],
 
-  controllers: [
-    AppController,
-    UsersController,
-  ],
+  controllers: [AppController, UsersController],
 
-  providers: [
-    AppService,
-    RolesGuard,
-  ],
+  providers: [AppService, RolesGuard],
 })
 export class AppModule {}

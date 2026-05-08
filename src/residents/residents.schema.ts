@@ -61,7 +61,11 @@ export interface LinkedRecord {
 // ── Validation helpers ─────────────────────────────────────────────────────
 
 export const VALID_GENDERS: ResidentGender[] = ['male', 'female', 'other'];
-export const VALID_STATUSES: ResidentStatus[] = ['active', 'discharged', 'deceased'];
+export const VALID_STATUSES: ResidentStatus[] = [
+  'active',
+  'discharged',
+  'deceased',
+];
 export const VALID_RECORD_TYPES: LinkedRecordType[] = [
   'medication',
   'diagnosis',

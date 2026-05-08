@@ -77,7 +77,7 @@ The API provides endpoints for:
 - **Jobs** (`/jobs`): Medication scheduling and reminders
 - **Notifications** (`/notifications`): Push notification management
 
-For detailed API specs, see the [API documentation](docs/api.md) (coming soon).
+For detailed API specs, see the [API Documentation](docs/api.md).
 
 ## 📁 Project Structure
 
@@ -90,6 +90,9 @@ src/
 └── ...
 
 docs/                # Documentation
+├── api.md           # API endpoints (New)
+├── architecture.md  # System design (New)
+├── ai-companion.md  # AI logic & safety (New)
 ├── environment-and-secrets.md
 ├── deployment-checklist.md
 ├── aws-light-foundation.md
@@ -134,6 +137,9 @@ npm run test:cov
 
 ## 📄 Documentation
 
+- [API Documentation](docs/api.md)
+- [Architecture Overview](docs/architecture.md)
+- [AI Companion & Safety](docs/ai-companion.md)
 - [Environment and Secrets](docs/environment-and-secrets.md)
 - [AWS Light Foundation](docs/aws-light-foundation.md)
 - [Demo Script](docs/demo-script.md)

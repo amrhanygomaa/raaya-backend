@@ -65,8 +65,13 @@ describe('LinkedRecordType validator', () => {
   });
 
   it.each([
-    'medication', 'diagnosis', 'lab_result',
-    'incident', 'care_plan', 'document', 'other',
+    'medication',
+    'diagnosis',
+    'lab_result',
+    'incident',
+    'care_plan',
+    'document',
+    'other',
   ])('accepts %s', (t) => {
     expect(isValidRecordType(t)).toBe(true);
   });
@@ -94,9 +99,16 @@ describe('buildSeedResidents()', () => {
 
   it('all residents have the expected keys', () => {
     const requiredKeys: (keyof Resident)[] = [
-      'id', 'facilityId', 'firstName', 'lastName',
-      'dateOfBirth', 'gender', 'admissionDate', 'status',
-      'createdAt', 'updatedAt',
+      'id',
+      'facilityId',
+      'firstName',
+      'lastName',
+      'dateOfBirth',
+      'gender',
+      'admissionDate',
+      'status',
+      'createdAt',
+      'updatedAt',
     ];
 
     for (const resident of residents) {
@@ -108,7 +120,9 @@ describe('buildSeedResidents()', () => {
   });
 
   it('all residents belong to the demo facility', () => {
-    expect(residents.every((r) => r.facilityId === SEED_FACILITY_ID)).toBe(true);
+    expect(residents.every((r) => r.facilityId === SEED_FACILITY_ID)).toBe(
+      true,
+    );
   });
 
   it('all residents have a valid gender', () => {
@@ -164,8 +178,13 @@ describe('buildSeedFamilyMembers()', () => {
 
   it('all family members have the expected keys', () => {
     const requiredKeys: (keyof FamilyMember)[] = [
-      'id', 'residentId', 'fullName', 'relationship', 'isPrimary',
-      'createdAt', 'updatedAt',
+      'id',
+      'residentId',
+      'fullName',
+      'relationship',
+      'isPrimary',
+      'createdAt',
+      'updatedAt',
     ];
 
     for (const member of members) {
@@ -220,8 +239,13 @@ describe('buildSeedLinkedRecords()', () => {
 
   it('all records have the expected keys', () => {
     const requiredKeys: (keyof LinkedRecord)[] = [
-      'id', 'residentId', 'recordType', 'title',
-      'recordedAt', 'createdAt', 'updatedAt',
+      'id',
+      'residentId',
+      'recordType',
+      'title',
+      'recordedAt',
+      'createdAt',
+      'updatedAt',
     ];
 
     for (const rec of records) {
@@ -247,14 +271,18 @@ describe('buildSeedLinkedRecords()', () => {
     const medRecord = records.find((r) => r.recordType === 'medication');
     expect(medRecord).toBeDefined();
     expect(medRecord!.content).toHaveProperty('drugs');
-    expect(Array.isArray((medRecord!.content as { drugs: unknown[] }).drugs)).toBe(true);
+    expect(
+      Array.isArray((medRecord!.content as { drugs: unknown[] }).drugs),
+    ).toBe(true);
   });
 
   it('Ahmad has a diagnosis record with ICD-10 codes', () => {
     const diagRecord = records.find((r) => r.recordType === 'diagnosis');
     expect(diagRecord).toBeDefined();
     expect(diagRecord!.content).toHaveProperty('icd10');
-    expect(Array.isArray((diagRecord!.content as { icd10: unknown[] }).icd10)).toBe(true);
+    expect(
+      Array.isArray((diagRecord!.content as { icd10: unknown[] }).icd10),
+    ).toBe(true);
   });
 
   it('Fatimah has a care_plan record with goals', () => {

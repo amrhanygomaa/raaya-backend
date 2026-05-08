@@ -1,10 +1,12 @@
 import {
+  BadRequestException,
+  Body,
   Controller,
   Get,
-  Post,
+  Inject,
+  Optional,
   Param,
-  Body,
-  InternalServerErrorException,
+  Post,
 } from '@nestjs/common';
 import {
   BedrockRuntimeClient,
@@ -12,7 +14,11 @@ import {
 } from '@aws-sdk/client-bedrock-runtime';
 import {
   AI_CHAT_DISCLAIMER,
+  CompanionConversationMessage,
+  buildDemoCompanionReply,
   buildCompanionPrompt,
+  normalizeConversationHistory,
+  normalizeResidentMemory,
   sanitizeAiReply,
   analyzeSentiment,
 } from './ai.guardrails';
@@ -26,6 +32,17 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const isUnknownArray = (value: unknown): value is unknown[] =>
   Array.isArray(value);
+
+export const AI_MODEL_CLIENT = 'AI_MODEL_CLIENT';
+
+const normalizeInlineText = (value: unknown): string | null => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const text = value.replace(/\s+/g, ' ').trim();
+  return text.length > 0 ? text : null;
+};
 
 const getClaudeReply = (value: unknown): string | null => {
   if (!isRecord(value)) {
@@ -45,9 +62,143 @@ const getClaudeReply = (value: unknown): string | null => {
   return firstBlock.text;
 };
 
+interface AiModelClient {
+  send(command: InvokeModelCommand): Promise<{ body?: Uint8Array }>;
+}
+
+interface ResidentMemoryRecord {
+  memory: string[];
+  updatedAt: string;
+}
+
+interface NormalizedChatRequest {
+  message: string;
+  residentName: string;
+  residentId: string | null;
+  conversationHistory: CompanionConversationMessage[];
+  language: string;
+  memory: string[];
+}
+
+const getStringField = (
+  source: Record<string, unknown>,
+  ...keys: string[]
+): string | null => {
+  for (const key of keys) {
+    const value = normalizeInlineText(source[key]);
+    if (value) {
+      return value;
+    }
+  }
+
+  return null;
+};
+
+const getNestedStringField = (
+  source: Record<string, unknown>,
+  objectKey: string,
+  ...keys: string[]
+): string | null => {
+  const value = source[objectKey];
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  return getStringField(value, ...keys);
+};
+
+const getMessageTextFromContent = (value: unknown): string | null => {
+  const text = normalizeInlineText(value);
+  if (text) {
+    return text;
+  }
+
+  if (isRecord(value)) {
+    return (
+      normalizeInlineText(value.text) ??
+      normalizeInlineText(value.content) ??
+      normalizeInlineText(value.message)
+    );
+  }
+
+  if (Array.isArray(value)) {
+    const parts = value
+      .map((item) => {
+        if (typeof item === 'string') {
+          return item;
+        }
+
+        if (isRecord(item)) {
+          return (
+            normalizeInlineText(item.text) ??
+            normalizeInlineText(item.content) ??
+            ''
+          );
+        }
+
+        return '';
+      })
+      .filter((item) => item.length > 0);
+
+    return normalizeInlineText(parts.join(' '));
+  }
+
+  return null;
+};
+
+const getLatestUserMessage = (
+  messages: unknown,
+): { message: string | null; history: CompanionConversationMessage[] } => {
+  if (!Array.isArray(messages)) {
+    return { message: null, history: [] };
+  }
+
+  const normalizedMessages = messages
+    .map((item) => {
+      if (!isRecord(item)) {
+        return null;
+      }
+
+      if (item.role !== 'user' && item.role !== 'assistant') {
+        return null;
+      }
+
+      const role = item.role;
+      const content = getMessageTextFromContent(
+        item.content ?? item.message ?? item.text,
+      );
+      if (!content) {
+        return null;
+      }
+
+      return { role, content };
+    })
+    .filter((item): item is CompanionConversationMessage => item !== null);
+
+  for (let index = normalizedMessages.length - 1; index >= 0; index -= 1) {
+    if (normalizedMessages[index].role === 'user') {
+      return {
+        message: normalizedMessages[index].content,
+        history: normalizedMessages.slice(0, index).slice(-12),
+      };
+    }
+  }
+
+  return { message: null, history: normalizedMessages.slice(-12) };
+};
+
 @Controller('ai')
 export class AiController {
-  private client = new BedrockRuntimeClient({ region: 'us-east-1' });
+  private readonly client: AiModelClient;
+  private readonly residentMemory = new Map<string, ResidentMemoryRecord>();
+
+  constructor(@Optional() @Inject(AI_MODEL_CLIENT) client?: AiModelClient) {
+    this.client =
+      client ??
+      new BedrockRuntimeClient({
+        region: process.env.AWS_REGION ?? 'us-east-1',
+      });
+  }
 
   @Get('recommendations/:residentId')
   getRecommendations(@Param('residentId') residentId: string) {
@@ -59,22 +210,136 @@ export class AiController {
     return buildDemoRecommendation(residentId);
   }
 
-  @Post('chat')
-  async chat(@Body() body: { message: string; residentName: string; conversationHistory?: { role: 'user' | 'assistant'; content: string }[]; language?: string }) {
-    const aiEnabled = process.env.AI_ENABLED === 'true';
-    if (!aiEnabled) {
-      return {
-        enabled: false,
-        reply: 'خاصية المحادثة غير متاحة حالياً',
-      };
+  @Get('memory/:residentId')
+  getMemory(@Param('residentId') residentId: string) {
+    const record = this.residentMemory.get(residentId);
+    return {
+      residentId,
+      memory: record?.memory ?? [],
+      updatedAt: record?.updatedAt ?? null,
+    };
+  }
+
+  @Post('memory/:residentId')
+  saveMemory(@Param('residentId') residentId: string, @Body() body: unknown) {
+    const source =
+      isRecord(body) &&
+      (body.memory !== undefined ||
+        body.memories !== undefined ||
+        body.facts !== undefined)
+        ? (body.memory ?? body.memories ?? body.facts)
+        : body;
+    const memory = normalizeResidentMemory(source);
+    if (memory.length === 0) {
+      throw new BadRequestException('memory must include at least one item');
     }
 
-    const sentiment = analyzeSentiment(body.message);
+    const record = {
+      memory,
+      updatedAt: new Date().toISOString(),
+    };
+    this.residentMemory.set(residentId, record);
+
+    return {
+      residentId,
+      ...record,
+    };
+  }
+
+  private normalizeChatRequest(body: unknown): NormalizedChatRequest {
+    if (!isRecord(body)) {
+      throw new BadRequestException('chat body must be an object');
+    }
+
+    const messageFromBody = getMessageTextFromContent(
+      body.message ?? body.content ?? body.text,
+    );
+    const messageFromMessages = getLatestUserMessage(body.messages);
+    const message = messageFromBody ?? messageFromMessages.message;
+
+    if (!message) {
+      throw new BadRequestException('message is required');
+    }
+
+    const residentName =
+      getStringField(body, 'residentName', 'name') ??
+      getNestedStringField(body, 'resident', 'name', 'residentName') ??
+      'صديقنا';
+    const residentId =
+      getStringField(body, 'residentId', 'userId') ??
+      getNestedStringField(body, 'resident', 'id', 'residentId');
+    const language = getStringField(body, 'language', 'locale') ?? 'ar-eg';
+    const explicitHistory = normalizeConversationHistory(
+      body.conversationHistory ?? body.history,
+    );
+    const conversationHistory =
+      explicitHistory.length > 0
+        ? explicitHistory
+        : messageFromMessages.history;
+    const memoryFromBody = normalizeResidentMemory(
+      body.memory ??
+        body.memories ??
+        body.residentMemory ??
+        body.residentContext ??
+        body.profile ??
+        (isRecord(body.resident) ? body.resident.memory : undefined),
+    );
+    const memoryFromStore = residentId
+      ? (this.residentMemory.get(residentId)?.memory ?? [])
+      : [];
+    const memory = Array.from(new Set([...memoryFromStore, ...memoryFromBody]));
+
+    return {
+      message,
+      residentName,
+      residentId,
+      conversationHistory,
+      language,
+      memory,
+    };
+  }
+
+  private buildFallbackChatResponse(
+    request: NormalizedChatRequest,
+    fallbackReason: 'ai_disabled' | 'bedrock_error',
+  ) {
+    const sentiment = analyzeSentiment(request.message);
+
+    return {
+      enabled: true,
+      mode: 'local-fallback',
+      bedrockEnabled: false,
+      fallbackReason,
+      reply: sanitizeAiReply(
+        buildDemoCompanionReply({
+          residentName: request.residentName,
+          message: request.message,
+          language: request.language,
+          sentiment,
+          memory: request.memory,
+        }),
+      ),
+      disclaimer: AI_CHAT_DISCLAIMER,
+      sentiment,
+      memoryUsed: request.memory.length > 0,
+    };
+  }
+
+  @Post('chat')
+  async chat(@Body() body: unknown) {
+    const request = this.normalizeChatRequest(body);
+    const aiEnabled = process.env.AI_ENABLED === 'true';
+    if (!aiEnabled) {
+      return this.buildFallbackChatResponse(request, 'ai_disabled');
+    }
+
+    const sentiment = analyzeSentiment(request.message);
     const prompt = buildCompanionPrompt({
-      residentName: body.residentName,
-      message: body.message,
-      conversationHistory: body.conversationHistory,
-      language: body.language,
+      residentName: request.residentName,
+      message: request.message,
+      conversationHistory: request.conversationHistory,
+      language: request.language,
+      memory: request.memory,
       sentiment,
     });
 
@@ -89,22 +354,29 @@ export class AiController {
       accept: 'application/json',
     });
 
-    const response = await this.client.send(command);
-    if (!response.body) {
-      throw new InternalServerErrorException('AI response body is empty');
-    }
+    try {
+      const response = await this.client.send(command);
+      if (!response.body) {
+        return this.buildFallbackChatResponse(request, 'bedrock_error');
+      }
 
-    const result: unknown = JSON.parse(Buffer.from(response.body).toString());
-    const reply = getClaudeReply(result);
-    if (!reply) {
-      throw new InternalServerErrorException('AI response format is invalid');
-    }
+      const result: unknown = JSON.parse(Buffer.from(response.body).toString());
+      const reply = getClaudeReply(result);
+      if (!reply) {
+        return this.buildFallbackChatResponse(request, 'bedrock_error');
+      }
 
-    return {
-      enabled: true,
-      reply: sanitizeAiReply(reply),
-      disclaimer: AI_CHAT_DISCLAIMER,
-      sentiment,
-    };
+      return {
+        enabled: true,
+        mode: 'bedrock',
+        bedrockEnabled: true,
+        reply: sanitizeAiReply(reply),
+        disclaimer: AI_CHAT_DISCLAIMER,
+        sentiment,
+        memoryUsed: request.memory.length > 0,
+      };
+    } catch {
+      return this.buildFallbackChatResponse(request, 'bedrock_error');
+    }
   }
 }

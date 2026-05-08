@@ -58,7 +58,9 @@ class TestAuthGuard implements CanActivate {
 
 // ── Helper: build an unsigned test JWT ───────────────────────────────────
 const makeToken = (roles: string[], facilityId = 'facility-1'): string => {
-  const header = Buffer.from(JSON.stringify({ alg: 'none' })).toString('base64url');
+  const header = Buffer.from(JSON.stringify({ alg: 'none' })).toString(
+    'base64url',
+  );
   const payload = Buffer.from(
     JSON.stringify({
       sub: `user-${roles[0]?.toLowerCase() ?? 'unknown'}`,
@@ -158,23 +160,19 @@ describe('RBAC – role-based decorators on protected routes (e2e)', () => {
 
   // ── Clinical-only endpoint ─────────────────────────────────────────────
   describe('Clinical-only endpoint (/clinical/records)', () => {
-    it.each(['Doctor', 'Nurse', 'ClinicalStaff'])(
-      'allows %s (200)',
-      (role) =>
-        request(app.getHttpServer())
-          .get('/clinical/records')
-          .set('Authorization', `Bearer ${makeToken([role])}`)
-          .expect(200)
-          .expect({ data: 'clinical-records' }),
+    it.each(['Doctor', 'Nurse', 'ClinicalStaff'])('allows %s (200)', (role) =>
+      request(app.getHttpServer())
+        .get('/clinical/records')
+        .set('Authorization', `Bearer ${makeToken([role])}`)
+        .expect(200)
+        .expect({ data: 'clinical-records' }),
     );
 
-    it.each(['Admin', 'FacilityManager'])(
-      'rejects %s (403)',
-      (role) =>
-        request(app.getHttpServer())
-          .get('/clinical/records')
-          .set('Authorization', `Bearer ${makeToken([role])}`)
-          .expect(403),
+    it.each(['Admin', 'FacilityManager'])('rejects %s (403)', (role) =>
+      request(app.getHttpServer())
+        .get('/clinical/records')
+        .set('Authorization', `Bearer ${makeToken([role])}`)
+        .expect(403),
     );
   });
 
@@ -187,13 +185,11 @@ describe('RBAC – role-based decorators on protected routes (e2e)', () => {
         .expect(200)
         .expect({ data: 'facility-dashboard' }));
 
-    it.each(['Admin', 'Nurse', 'Doctor'])(
-      'rejects %s (403)',
-      (role) =>
-        request(app.getHttpServer())
-          .get('/facility/dashboard')
-          .set('Authorization', `Bearer ${makeToken([role])}`)
-          .expect(403),
+    it.each(['Admin', 'Nurse', 'Doctor'])('rejects %s (403)', (role) =>
+      request(app.getHttpServer())
+        .get('/facility/dashboard')
+        .set('Authorization', `Bearer ${makeToken([role])}`)
+        .expect(403),
     );
   });
 });

@@ -5,8 +5,11 @@ import {
   AI_SUMMARY_DISCLAIMER,
   analyzeSentiment,
   buildCompanionPrompt,
+  buildDemoCompanionReply,
   buildWellbeingSummaryPrompt,
   containsUnsafeMedicalAdvice,
+  normalizeConversationHistory,
+  normalizeResidentMemory,
   sanitizeAiReply,
 } from './ai.guardrails';
 
@@ -36,6 +39,18 @@ describe('AI guardrails', () => {
     expect(prompt).toContain('تاريخ المحادثة السابق');
     expect(prompt).toContain('المستخدم: أنا بخير');
     expect(prompt).toContain('الرفيق: ممتاز!');
+  });
+
+  it('builds a companion prompt with resident memory', () => {
+    const prompt = buildCompanionPrompt({
+      residentName: 'أحمد',
+      message: 'فاكر أنا بحب إيه؟',
+      memory: ['بيحب أم كلثوم', 'يفضل الشاي بالنعناع'],
+    });
+
+    expect(prompt).toContain('ذاكرة أحمد');
+    expect(prompt).toContain('بيحب أم كلثوم');
+    expect(prompt).toContain('لا تخترع تفاصيل غير مكتوبة');
   });
 
   it('builds a companion prompt with different languages', () => {
@@ -69,6 +84,58 @@ describe('AI guardrails', () => {
     expect(prompt).toContain('تناولت الإفطار');
     expect(prompt).toContain('العربية أو الإنجليزية');
     expect(prompt).toContain('المراجعة البشرية مطلوبة');
+  });
+
+  it('normalizes resident memory from strings, objects, and nested facts', () => {
+    expect(
+      normalizeResidentMemory({
+        favoriteSong: 'أم كلثوم',
+        preferences: { drink: 'شاي بالنعناع' },
+        facts: ['يمشي بعد العصر'],
+      }),
+    ).toEqual([
+      'يمشي بعد العصر',
+      'favoriteSong: أم كلثوم',
+      'preferences: drink: شاي بالنعناع',
+    ]);
+
+    expect(
+      normalizeResidentMemory({
+        label: 'هواية',
+        value: 'زراعة الريحان',
+      }),
+    ).toEqual(['هواية: زراعة الريحان']);
+
+    expect(
+      normalizeResidentMemory({
+        favoriteSong: 'أم كلثوم',
+        preferences: { drink: 'شاي بالنعناع' },
+      }),
+    ).toEqual(['favoriteSong: أم كلثوم', 'preferences: drink: شاي بالنعناع']);
+  });
+
+  it('normalizes conversation history from common message shapes', () => {
+    expect(
+      normalizeConversationHistory([
+        { role: 'user', content: 'أنا بخير' },
+        { role: 'assistant', text: 'جميل' },
+        { role: 'system', content: 'ignore me' },
+      ]),
+    ).toEqual([
+      { role: 'user', content: 'أنا بخير' },
+      { role: 'assistant', content: 'جميل' },
+    ]);
+  });
+
+  it('builds a local companion reply that can use memory', () => {
+    const reply = buildDemoCompanionReply({
+      residentName: 'أحمد',
+      message: 'فاكر أنا بحب إيه؟',
+      memory: ['بيحب أم كلثوم'],
+    });
+
+    expect(reply).toContain('أحمد');
+    expect(reply).toContain('بيحب أم كلثوم');
   });
 
   it('keeps visible human-review disclaimers available to API responses', () => {
