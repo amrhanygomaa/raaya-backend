@@ -13,31 +13,45 @@ interface JwtPayload {
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor() {
-    const issuer = `https://cognito-idp.us-east-1.amazonaws.com/${process.env.COGNITO_USER_POOL_ID}`;
+    // 👇 ثابتين مؤقتًا للتأكد إن JWT شغال
+    const issuer =
+      'https://cognito-idp.us-east-1.amazonaws.com/us-east-1_MqQaZdJDT';
 
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
+
       secretOrKeyProvider: passportJwtSecret({
         cache: true,
         rateLimit: true,
         jwksRequestsPerMinute: 5,
-        jwksUri:
-          process.env.COGNITO_JWKS_URI ?? `${issuer}/.well-known/jwks.json`,
+        jwksUri: `${issuer}/.well-known/jwks.json`,
       }),
-      audience: process.env.COGNITO_CLIENT_ID,
+
+      // 👇 Cognito App Client ID
+      audience: '2370bcb5pl0jau4bvk88bu1rt3',
+
       issuer,
+
       algorithms: ['RS256'],
     });
   }
 
-  validate(payload: JwtPayload) {
-    if (!payload) throw new UnauthorizedException();
-    return {
-      userId: payload.sub,
-      email: payload.email,
-      role: payload['custom:role'],
-      facilityId: payload['custom:facilityId'],
-    };
+ validate(payload: any) {
+  console.log('JWT PAYLOAD:', payload);
+
+  if (!payload) {
+    throw new UnauthorizedException();
   }
+
+  return {
+    userId: payload.sub,
+    email: payload.email,
+
+    // 👇 ناخد roles من Cognito Groups
+    roles: payload['cognito:groups'] || [],
+
+    facilityId: payload['custom:facilityId'],
+  };
+}
 }
