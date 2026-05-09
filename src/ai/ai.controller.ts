@@ -12,7 +12,13 @@ import {
   BedrockRuntimeClient,
   InvokeModelCommand,
 } from '@aws-sdk/client-bedrock-runtime';
-import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   AI_CHAT_DISCLAIMER,
   CompanionConversationMessage,
@@ -223,6 +229,32 @@ export class AiController {
   }
 
   @Get('memory/:residentId')
+  @ApiOperation({ summary: 'Get stored memory for a resident' })
+  @ApiParam({
+    name: 'residentId',
+    description: 'Resident identifier',
+    example: 'demo-resident',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Resident memory array.',
+    schema: {
+      type: 'object',
+      properties: {
+        residentId: { type: 'string', example: 'demo-resident' },
+        memory: {
+          type: 'array',
+          items: { type: 'string' },
+          example: ['Likes reading Quran in the morning'],
+        },
+        updatedAt: {
+          type: 'string',
+          nullable: true,
+          example: '2025-05-08T10:00:00.000Z',
+        },
+      },
+    },
+  })
   getMemory(@Param('residentId') residentId: string) {
     const record = this.residentMemory.get(residentId);
     return {
@@ -233,6 +265,32 @@ export class AiController {
   }
 
   @Post('memory/:residentId')
+  @ApiOperation({ summary: 'Save memory facts for a resident' })
+  @ApiParam({
+    name: 'residentId',
+    description: 'Resident identifier',
+    example: 'demo-resident',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        memory: {
+          type: 'array',
+          items: { type: 'string' },
+          example: [
+            'Likes reading Quran in the morning',
+            'Prefers warm drinks',
+          ],
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Memory saved.' })
+  @ApiResponse({
+    status: 400,
+    description: 'memory must include at least one item.',
+  })
   saveMemory(@Param('residentId') residentId: string, @Body() body: unknown) {
     const source =
       isRecord(body) &&
@@ -338,6 +396,39 @@ export class AiController {
   }
 
   @Post('chat')
+  @ApiOperation({
+    summary: 'AI companion chat',
+    description:
+      'Send a message to the AI companion on behalf of a resident. ' +
+      'Falls back to a local rule-based reply when AI_ENABLED is not true.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['message'],
+      properties: {
+        message: { type: 'string', example: 'كيف حالك اليوم؟' },
+        residentName: { type: 'string', example: 'Ahmad' },
+        residentId: {
+          type: 'string',
+          example: 'a1b2c3d4-0000-0000-0000-000000000001',
+        },
+        language: { type: 'string', example: 'ar-eg', default: 'ar-eg' },
+        conversationHistory: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              role: { type: 'string', enum: ['user', 'assistant'] },
+              content: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: 'AI companion reply.' })
+  @ApiResponse({ status: 400, description: 'message is required.' })
   async chat(@Body() body: unknown) {
     const request = this.normalizeChatRequest(body);
     const aiEnabled = process.env.AI_ENABLED === 'true';
