@@ -479,11 +479,14 @@ export class AiController {
         memoryUsed: request.memory.length > 0,
       };
     } catch (error) {
-      console.error(
-        '[AI] Bedrock call failed:',
-        error instanceof Error ? error.message : error,
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error('[AI] Bedrock call failed:', errorMessage);
+      const fallback = this.buildFallbackChatResponse(
+        request,
+        'bedrock_error',
       );
-      return this.buildFallbackChatResponse(request, 'bedrock_error');
+      return { ...fallback, _debug: errorMessage };
     }
   }
 }
