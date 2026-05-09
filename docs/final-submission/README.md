@@ -51,6 +51,7 @@ This folder is the final handover/submission index for US-10-08.
 
 | Document | Path |
 |----------|------|
+| SRS (IEEE 29148:2018, bilingual) | `docs/final-submission/SRS.md` |
 | Project README | `README.md` |
 | Final demo script | `docs/demo-script.md` |
 | Handover note | `docs/handover-note.md` |
