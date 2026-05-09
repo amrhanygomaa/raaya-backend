@@ -31,12 +31,13 @@ ENV/
 ._*
 Thumbs.db
 ehthumbs.db
-desktop.ini
 
 # === Build Artifacts ===
 dist/
 build/
 out/
+coverage/
+*.zip
 *.so
 *.egg-info/
 
