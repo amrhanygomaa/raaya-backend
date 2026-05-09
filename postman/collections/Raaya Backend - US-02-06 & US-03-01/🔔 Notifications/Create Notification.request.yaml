@@ -1,0 +1,14 @@
+$kind: http-request
+url: "{{baseUrl}}/notifications"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "userId": "user-123",
+      "message": "تذكير بالدواء",
+      "type": "medication"
+    }
+order: 1000

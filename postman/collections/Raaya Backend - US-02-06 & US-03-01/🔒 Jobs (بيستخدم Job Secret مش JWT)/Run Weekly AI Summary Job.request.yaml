@@ -1,0 +1,6 @@
+$kind: http-request
+url: "{{baseUrl}}/jobs/weekly-ai-summary"
+method: POST
+headers:
+  x-job-secret: "{{jobSecret}}"
+order: 3000

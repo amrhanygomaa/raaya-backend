@@ -1,0 +1,8 @@
+$kind: http-request
+name: GET /users/clinical (Doctor/Nurse/ClinicalStaff → 200 or 403)
+description: Doctor أو Nurse أو ClinicalStaff → 200. Admin → 403
+url: "{{baseUrl}}/users/clinical"
+method: GET
+headers:
+  Authorization: Bearer {{token}}
+order: 5000

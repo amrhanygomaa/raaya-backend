@@ -1,0 +1,5 @@
+$kind: http-request
+description: غيّر NOTIFICATION_ID بالـ id اللي رجع من Create
+url: "{{baseUrl}}/notifications/NOTIFICATION_ID/read"
+method: PATCH
+order: 3000

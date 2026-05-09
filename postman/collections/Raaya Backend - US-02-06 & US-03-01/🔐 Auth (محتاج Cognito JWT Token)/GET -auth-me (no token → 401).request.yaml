@@ -1,0 +1,6 @@
+$kind: http-request
+name: GET /auth/me (no token → 401)
+description: بدون token → المفروض يرجع 401
+url: "{{baseUrl}}/auth/me"
+method: GET
+order: 1000

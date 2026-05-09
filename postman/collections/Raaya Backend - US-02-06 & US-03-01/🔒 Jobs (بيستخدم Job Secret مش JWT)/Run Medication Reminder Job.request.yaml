@@ -1,0 +1,8 @@
+$kind: http-request
+name: Run Medication Reminder Job
+description: يشغّل الـ medication reminder job. محتاج x-job-secret header
+url: "{{baseUrl}}/jobs/medication-reminder"
+method: POST
+headers:
+  x-job-secret: raaya-test-secret-123
+order: 1000

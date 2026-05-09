@@ -1,0 +1,8 @@
+$kind: http-request
+name: GET /users/admin (Admin role → 200 or 403)
+description: Admin فقط → 200. أي role تاني → 403 Forbidden
+url: "{{baseUrl}}/users/admin"
+method: GET
+headers:
+  Authorization: Bearer {{token}}
+order: 4000

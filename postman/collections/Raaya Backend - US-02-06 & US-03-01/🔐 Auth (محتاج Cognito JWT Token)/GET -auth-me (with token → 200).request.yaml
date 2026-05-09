@@ -1,0 +1,8 @@
+$kind: http-request
+name: GET /auth/me (with token → 200)
+description: بالـ token → يرجع userId, email, roles, facilityId
+url: "{{baseUrl}}/auth/me"
+method: GET
+headers:
+  Authorization: Bearer {{token}}
+order: 2000

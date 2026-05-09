@@ -13,6 +13,12 @@ import {
   InvokeModelCommand,
 } from '@aws-sdk/client-bedrock-runtime';
 import {
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import {
   AI_CHAT_DISCLAIMER,
   CompanionConversationMessage,
   buildDemoCompanionReply,
@@ -187,6 +193,7 @@ const getLatestUserMessage = (
   return { message: null, history: normalizedMessages.slice(-12) };
 };
 
+@ApiTags('AI')
 @Controller('ai')
 export class AiController {
   private readonly client: AiModelClient;
@@ -201,6 +208,13 @@ export class AiController {
   }
 
   @Get('recommendations/:residentId')
+  @ApiOperation({
+    summary: 'Get AI recommendations for a resident',
+    description:
+      'Returns summary, rationale, generated date, and flag state. If AI_ENABLED is not true, returns a safe disabled fallback instead of failing.',
+  })
+  @ApiParam({ name: 'residentId', description: 'Resident identifier' })
+  @ApiResponse({ status: 200, description: 'AI recommendation or safe fallback.' })
   getRecommendations(@Param('residentId') residentId: string) {
     const aiEnabled = process.env.AI_ENABLED === 'true';
     if (!aiEnabled) {

@@ -1,0 +1,15 @@
+# Use this workspace to collaborate
+workspace:
+  id: 9ee70c06-e74b-4549-8e07-c9f74ffcfaeb
+
+# Each entry here maps a local resource to one or more corresponding objects in Postman Cloud
+
+cloudResources:
+  collections:
+    ..\postman\collections\Raaya Backend - US-02-06 & US-03-01: 8b9b4b64-56fd-4e52-bb17-7c96ddecfa5b
+
+# All resources in the `postman/` folder are automatically registered in Local View.
+# Point to additional files outside the `postman/` folder to register them individually. Example:
+#localResources:
+#  collections:
+#    - ../tests/E2E Test Collection/

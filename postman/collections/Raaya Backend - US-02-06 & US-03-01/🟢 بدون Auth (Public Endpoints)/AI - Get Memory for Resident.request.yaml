@@ -1,0 +1,5 @@
+$kind: http-request
+description: يجيب الـ memory المحفوظة للـ resident
+url: "{{baseUrl}}/ai/memory/demo-resident"
+method: GET
+order: 3000

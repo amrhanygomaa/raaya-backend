@@ -1,0 +1,12 @@
+$kind: http-request
+url: "{{baseUrl}}/ai/memory/demo-resident"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "memory": ["بيحب أم كلثوم", "بيحب الشطرنج"]
+    }
+order: 4000

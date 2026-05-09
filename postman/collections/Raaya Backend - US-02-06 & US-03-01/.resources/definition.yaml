@@ -1,0 +1,7 @@
+$kind: collection
+name: Raaya Backend - US-02-06 & US-03-01
+description: اختبار RBAC والـ endpoints الأساسية للـ Raaya Backend
+variables:
+  baseUrl: http://localhost:3000
+  token: PASTE_YOUR_JWT_TOKEN_HERE
+  jobSecret: raaya-test-secret-123

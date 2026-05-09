@@ -1,0 +1,5 @@
+$kind: http-request
+description: يرجع AI recommendation للـ resident. AI_ENABLED=false → يرجع disabled message
+url: "{{baseUrl}}/ai/recommendations/demo-resident"
+method: GET
+order: 2000

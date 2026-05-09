@@ -171,3 +171,73 @@ These endpoints are designed for internal use by AWS Lambda triggers and are pro
 
 - **URL**: `/notifications/:id/read`
 - **Method**: `PATCH`
+
+---
+
+## 5. Residents (`/residents`)  — US-03-02
+
+All resident endpoints are facility-scoped: the `facilityId` is always read from
+the authenticated user's JWT token (`custom:facilityId`), never from the URL or
+body. Cross-facility access is blocked at the query level.
+
+### Create Resident (Admin only)
+
+- **URL**: `/residents`
+- **Method**: `POST`
+- **Security**: JWT + Admin role
+- **Payload**:
+  ```json
+  {
+    "firstName": "Ahmad",
+    "lastName": "Al-Rashid",
+    "dateOfBirth": "1940-03-15",
+    "gender": "male",
+    "nationalId": "1234567890",
+    "roomNumber": "101",
+    "admissionDate": "2025-01-10",
+    "status": "active",
+    "notes": "Needs wheelchair assistance"
+  }
+  ```
+- **Success Response (201 Created)**: The full resident object with `id`, `facilityId`, timestamps.
+
+### List Residents
+
+- **URL**: `/residents`
+- **Method**: `GET`
+- **Security**: JWT (any authenticated user)
+- **Query Parameters**:
+  - `status` (optional): `active` | `discharged` | `deceased`
+- **Success Response (200 OK)**: Array of resident objects for the caller's facility.
+
+### Get Single Resident
+
+- **URL**: `/residents/:id`
+- **Method**: `GET`
+- **Security**: JWT (any authenticated user)
+- **Success Response (200 OK)**: Single resident object.
+- **Error Response (404)**: Resident not found (or belongs to another facility).
+
+### Update Resident (Admin only)
+
+- **URL**: `/residents/:id`
+- **Method**: `PATCH`
+- **Security**: JWT + Admin role
+- **Payload**: Partial resident object (only fields to update):
+  ```json
+  {
+    "roomNumber": "202",
+    "status": "discharged",
+    "dischargeDate": "2025-06-01"
+  }
+  ```
+- **Success Response (200 OK)**: Updated resident object.
+- **Error Response (404)**: Resident not found (or belongs to another facility).
+
+---
+
+## Swagger UI
+
+Interactive API documentation is available at:
+- **URL**: `/api/docs`
+- All endpoints are documented with request/response schemas.

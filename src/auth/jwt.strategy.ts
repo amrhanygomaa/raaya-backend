@@ -27,9 +27,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKeyProvider: passportJwtSecret({
-        cache: true,
-        rateLimit: true,
-        jwksRequestsPerMinute: 5,
+        cache: false,
+        rateLimit: false,
+        jwksRequestsPerMinute: 10,
         jwksUri,
       }),
       audience,

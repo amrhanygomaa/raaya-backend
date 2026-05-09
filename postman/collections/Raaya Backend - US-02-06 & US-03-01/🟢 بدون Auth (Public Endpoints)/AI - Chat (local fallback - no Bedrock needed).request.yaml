@@ -1,0 +1,14 @@
+$kind: http-request
+url: "{{baseUrl}}/ai/chat"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "message": "كيف حالك؟",
+      "residentName": "أحمد",
+      "memory": ["بيحب أم كلثوم", "عنده حفيدة اسمها سارة"]
+    }
+order: 5000

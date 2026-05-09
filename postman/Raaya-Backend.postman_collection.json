@@ -1,0 +1,781 @@
+{
+  "info": {
+    "name": "Raaya Backend - US-02-06 & US-03-01",
+    "_postman_id": "raaya-backend-tests",
+    "description": "اختبار RBAC والـ endpoints الأساسية للـ Raaya Backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "PASTE_YOUR_JWT_TOKEN_HERE",
+      "type": "string"
+    },
+    {
+      "key": "jobSecret",
+      "value": "raaya-test-secret-123",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "🟢 بدون Auth (Public Endpoints)",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/",
+            "description": "تأكد إن السيرفر شغال — المفروض يرجع Hello World"
+          }
+        },
+        {
+          "name": "AI - Get Recommendations (no auth needed)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/ai/recommendations/demo-resident",
+            "description": "يرجع AI recommendation للـ resident. AI_ENABLED=false → يرجع disabled message"
+          }
+        },
+        {
+          "name": "AI - Get Memory for Resident",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/ai/memory/demo-resident",
+            "description": "يجيب الـ memory المحفوظة للـ resident"
+          }
+        },
+        {
+          "name": "AI - Save Memory",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/ai/memory/demo-resident",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"memory\": [\"بيحب أم كلثوم\", \"بيحب الشطرنج\"]\n}"
+            }
+          }
+        },
+        {
+          "name": "AI - Chat (local fallback - no Bedrock needed)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/ai/chat",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"كيف حالك؟\",\n  \"residentName\": \"أحمد\",\n  \"memory\": [\"بيحب أم كلثوم\", \"عنده حفيدة اسمها سارة\"]\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔒 Jobs (بيستخدم Job Secret مش JWT)",
+      "item": [
+        {
+          "name": "Run Medication Reminder Job",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/jobs/medication-reminder",
+            "header": [
+              { "key": "x-job-secret", "value": "{{jobSecret}}" }
+            ],
+            "description": "يشغّل الـ medication reminder job. محتاج x-job-secret header"
+          }
+        },
+        {
+          "name": "Run Daily Digest Job",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/jobs/daily-digest",
+            "header": [
+              { "key": "x-job-secret", "value": "{{jobSecret}}" }
+            ]
+          }
+        },
+        {
+          "name": "Run Weekly AI Summary Job",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/jobs/weekly-ai-summary",
+            "header": [
+              { "key": "x-job-secret", "value": "{{jobSecret}}" }
+            ]
+          }
+        },
+        {
+          "name": "❌ Job Rejected (wrong secret)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/jobs/medication-reminder",
+            "header": [
+              { "key": "x-job-secret", "value": "wrong-secret" }
+            ],
+            "description": "المفروض يرجع 401 Unauthorized"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔐 Auth (محتاج Cognito JWT Token)",
+      "item": [
+        {
+          "name": "GET /auth/me (no token → 401)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/auth/me",
+            "description": "بدون token → المفروض يرجع 401"
+          }
+        },
+        {
+          "name": "GET /auth/me (with token → 200)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/auth/me",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "description": "بالـ token → يرجع userId, email, roles, facilityId"
+          }
+        },
+        {
+          "name": "GET /users/me (with token → 200)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users/me",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ]
+          }
+        },
+        {
+          "name": "GET /users/admin (Admin role → 200 or 403)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users/admin",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "description": "Admin فقط → 200. أي role تاني → 403 Forbidden"
+          }
+        },
+        {
+          "name": "GET /users/clinical (Doctor/Nurse/ClinicalStaff → 200 or 403)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users/clinical",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "description": "Doctor أو Nurse أو ClinicalStaff → 200. Admin → 403"
+          }
+        }
+      ]
+    },
+    {
+      "name": "� Medications (US-04-01)",
+      "item": [
+        {
+          "name": "Create Schedule",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/medications/schedules",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"residentId\": \"a1b2c3d4-0000-0000-0000-000000000001\",\n  \"medicationName\": \"Aspirin 100mg\",\n  \"dosage\": \"1 tablet\",\n  \"route\": \"oral\",\n  \"frequency\": \"daily\",\n  \"scheduledTimes\": [\"08:00\"],\n  \"startDate\": \"2025-01-10\",\n  \"prescriber\": \"Dr. Sami\",\n  \"notes\": \"Take with breakfast\"\n}"
+            },
+            "description": "ينشئ جدول دواء جديد لـ resident"
+          }
+        },
+        {
+          "name": "List Schedules",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/medications/schedules",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "description": "يجيب كل جداول الأدوية للـ facility. ممكن تضيف ?residentId=... أو ?active=true"
+          }
+        },
+        {
+          "name": "List Schedules (filter by resident)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/medications/schedules?residentId=a1b2c3d4-0000-0000-0000-000000000001",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "description": "يجيب جداول أدوية resident معين"
+          }
+        },
+        {
+          "name": "Get Single Schedule",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/medications/schedules/d1000000-0000-0000-0000-000000000001",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "description": "يجيب جدول دواء واحد بالـ ID"
+          }
+        },
+        {
+          "name": "Update Schedule",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/medications/schedules/d1000000-0000-0000-0000-000000000001",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dosage\": \"2 tablets\",\n  \"notes\": \"Increased dosage per Dr. Sami\"\n}"
+            },
+            "description": "يعدّل جدول دواء (PATCH – الحقول اللي تبعتها بس)"
+          }
+        },
+        {
+          "name": "Log Dose",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/medications/doses",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scheduleId\": \"d1000000-0000-0000-0000-000000000001\",\n  \"residentId\": \"a1b2c3d4-0000-0000-0000-000000000001\",\n  \"scheduledTime\": \"2025-05-09T08:00:00.000Z\",\n  \"status\": \"given\",\n  \"administeredAt\": \"2025-05-09T08:05:00.000Z\",\n  \"notes\": \"Administered with water\"\n}"
+            },
+            "description": "يسجّل جرعة دواء (given / skipped / pending / missed)"
+          }
+        },
+        {
+          "name": "List Dose Logs",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/medications/doses",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "description": "يجيب كل الـ dose logs. ممكن تضيف ?residentId=...&scheduleId=...&status=pending"
+          }
+        },
+        {
+          "name": "Update Dose Log",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/medications/doses/e1000000-0000-0000-0000-000000000004",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"given\",\n  \"administeredAt\": \"2025-05-08T10:00:00.000Z\",\n  \"notes\": \"Given late\"\n}"
+            },
+            "description": "يحدّث حالة جرعة (مثلاً من pending لـ given)"
+          }
+        },
+        {
+          "name": "Get Overdue Doses",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/medications/overdue",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "description": "يجيب الجرعات المتأخرة (pending + scheduled_time في الماضي)"
+          }
+        },
+        {
+          "name": "Adherence Report (weekly)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/medications/adherence?period=weekly",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "description": "تقرير الالتزام الأسبوعي – نسبة الجرعات المُعطاة من إجمالي الجرعات (آخر 7 أيام)"
+          }
+        },
+        {
+          "name": "Adherence Report (monthly)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/medications/adherence?period=monthly",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "description": "تقرير الالتزام الشهري – آخر 30 يوم"
+          }
+        },
+        {
+          "name": "Adherence Report (single resident)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/medications/adherence?period=weekly&residentId=a1b2c3d4-0000-0000-0000-000000000001",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "description": "تقرير الالتزام لـ resident واحد"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Family Bridge (US-05-01)",
+      "item": [
+        {
+          "name": "Request Presigned Upload URL",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/family-bridge/media/upload",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"residentId\": \"a1b2c3d4-0000-0000-0000-000000000001\",\n  \"fileName\": \"family-photo.jpg\",\n  \"contentType\": \"image/jpeg\",\n  \"caption\": \"Family gathering - Eid 2025\"\n}"
+            },
+            "description": "Presigned S3 PUT URL + pending media record"
+          }
+        },
+        {
+          "name": "Confirm Media Upload",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/family-bridge/media/MEDIA_ID/confirm",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fileSizeBytes\": 245000\n}"
+            },
+            "description": "Replace MEDIA_ID with the id returned from Upload"
+          }
+        },
+        {
+          "name": "List Media",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/family-bridge/media",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "description": "List all media. Optional: ?residentId=...&status=confirmed"
+          }
+        },
+        {
+          "name": "Book Visit",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/family-bridge/visits",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"residentId\": \"a1b2c3d4-0000-0000-0000-000000000001\",\n  \"visitorName\": \"Khalid Al-Rashid\",\n  \"visitorRelationship\": \"son\",\n  \"visitDate\": \"2025-05-12\",\n  \"visitTimeStart\": \"10:00\",\n  \"visitTimeEnd\": \"11:30\",\n  \"notes\": \"Weekly family visit\"\n}"
+            },
+            "description": "Book a visit for a resident"
+          }
+        },
+        {
+          "name": "List Visits",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/family-bridge/visits",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "description": "List all visits. Optional: ?residentId=...&status=pending"
+          }
+        },
+        {
+          "name": "Approve Visit",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/family-bridge/visits/f4000000-0000-0000-0000-000000000001/status",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\",\n  \"notes\": \"Approved by nursing staff\"\n}"
+            },
+            "description": "Approve / reject / complete / cancel a visit"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health (US-06-01)",
+      "item": [
+        {
+          "name": "Record Vital Signs",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/health/vitals",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"residentId\": \"a1b2c3d4-0000-0000-0000-000000000001\",\n  \"heartRate\": 72,\n  \"bloodPressureSystolic\": 120,\n  \"bloodPressureDiastolic\": 80,\n  \"temperature\": 36.8,\n  \"respiratoryRate\": 16,\n  \"oxygenSaturation\": 98,\n  \"bloodGlucose\": 95,\n  \"notes\": \"Morning check\"\n}"
+            },
+            "description": "Record vitals – auto-creates alerts if out of threshold range"
+          }
+        },
+        {
+          "name": "Record Vitals (abnormal – triggers alert)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/health/vitals",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"residentId\": \"a1b2c3d4-0000-0000-0000-000000000001\",\n  \"heartRate\": 110,\n  \"oxygenSaturation\": 92,\n  \"notes\": \"Elevated HR, low O2\"\n}"
+            },
+            "description": "Abnormal values trigger warning alerts automatically"
+          }
+        },
+        {
+          "name": "List Vitals",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/health/vitals",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "description": "List all vitals. Optional: ?residentId=..."
+          }
+        },
+        {
+          "name": "List Alerts",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/health/alerts?status=active",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "description": "List active alerts. Optional: ?residentId=...&status=active"
+          }
+        },
+        {
+          "name": "Acknowledge Alert",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/health/alerts/ALERT_ID",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"acknowledged\",\n  \"notes\": \"Reviewed by Dr. Sami\"\n}"
+            },
+            "description": "Replace ALERT_ID with actual alert UUID"
+          }
+        },
+        {
+          "name": "List Thresholds",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/health/thresholds",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "description": "List all vital thresholds for the facility"
+          }
+        },
+        {
+          "name": "Upsert Threshold (Admin)",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/health/thresholds",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vitalType\": \"heart_rate\",\n  \"minValue\": 55,\n  \"maxValue\": 105,\n  \"unit\": \"bpm\"\n}"
+            },
+            "description": "Create or update a threshold (Admin only)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "KPI Dashboard (US-07-01)",
+      "item": [
+        {
+          "name": "KPI Dashboard (30 days)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/kpi/dashboard",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "description": "Full KPI dashboard – medication adherence, family engagement, critical alerts, complaint closure (default 30 days)"
+          }
+        },
+        {
+          "name": "KPI Dashboard (7 days)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/kpi/dashboard?days=7",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "description": "Weekly KPI snapshot"
+          }
+        },
+        {
+          "name": "KPI Dashboard (90 days)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/kpi/dashboard?days=90",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "description": "Quarterly KPI report"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Complaints (US-07-03)",
+      "item": [
+        {
+          "name": "Create Complaint",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/complaints",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"residentId\": \"a1b2c3d4-0000-0000-0000-000000000001\",\n  \"category\": \"care_quality\",\n  \"subject\": \"Physical therapy schedule concern\",\n  \"description\": \"Resident missed two PT sessions last week\",\n  \"priority\": \"high\"\n}"
+            },
+            "description": "Create a new complaint (status: open)"
+          }
+        },
+        {
+          "name": "List Complaints",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/complaints",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "description": "List all complaints. Optional: ?status=open&priority=high&residentId=..."
+          }
+        },
+        {
+          "name": "List Complaints (open only)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/complaints?status=open",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "description": "Filter by open status"
+          }
+        },
+        {
+          "name": "Get Complaint by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/complaints/cp000000-0000-0000-0000-000000000003",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "description": "Get single complaint details"
+          }
+        },
+        {
+          "name": "Move to In-Progress",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/complaints/cp000000-0000-0000-0000-000000000003/status",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"in_progress\"\n}"
+            },
+            "description": "Valid: open -> in_progress"
+          }
+        },
+        {
+          "name": "Resolve Complaint",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/complaints/cp000000-0000-0000-0000-000000000003/status",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"resolved\",\n  \"resolutionNotes\": \"PT schedule corrected and confirmed with family\"\n}"
+            },
+            "description": "Valid: in_progress -> resolved. Sets resolved_by and resolved_at."
+          }
+        },
+        {
+          "name": "Invalid Transition (should fail)",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/complaints/cp000000-0000-0000-0000-000000000003/status",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"open\"\n}"
+            },
+            "description": "Invalid: closed -> open should return 400"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Management (US-07-05)",
+      "item": [
+        {
+          "name": "Create Managed User",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/admin/users",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nurse.new@raaya.demo\",\n  \"fullName\": \"New Demo Nurse\",\n  \"role\": \"Nurse\",\n  \"temporaryPassword\": \"TempPass123!\",\n  \"suppressInvite\": true\n}"
+            },
+            "description": "Admin only. Creates Cognito user and local managed_users record."
+          }
+        },
+        {
+          "name": "List Managed Users",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/admin/users",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "description": "Admin only. Optional filters: ?status=active&role=Nurse"
+          }
+        },
+        {
+          "name": "Disable Managed User",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/admin/users/ad000000-0000-0000-0000-000000000002/disable",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "description": "Admin only. Disables Cognito user and updates local audit fields."
+          }
+        },
+        {
+          "name": "Get Facility Settings",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/admin/settings",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "description": "Admin only. Gets reminder defaults and persisted vital thresholds."
+          }
+        },
+        {
+          "name": "Update Facility Settings",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/admin/settings",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"medicationReminderMinutesBefore\": 45,\n  \"visitReminderHoursBefore\": 12,\n  \"alertPushEnabled\": true,\n  \"timezone\": \"Asia/Riyadh\",\n  \"vitalThresholds\": {\n    \"heart_rate\": { \"minValue\": 55, \"maxValue\": 105, \"unit\": \"bpm\" },\n    \"oxygen_saturation\": { \"minValue\": 94, \"unit\": \"%\" }\n  }\n}"
+            },
+            "description": "Admin only. Persists facility settings and syncs vital thresholds."
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔔 Notifications",
+      "item": [
+        {
+          "name": "Create Notification",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/notifications",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"user-123\",\n  \"message\": \"تذكير بالدواء\",\n  \"type\": \"medication\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Notifications for User",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/notifications/user-123"
+          }
+        },
+        {
+          "name": "Mark Notification as Read",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/notifications/NOTIFICATION_ID/read",
+            "description": "غيّر NOTIFICATION_ID بالـ id اللي رجع من Create"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+$kind: http-request
+url: "{{baseUrl}}/jobs/daily-digest"
+method: POST
+headers:
+  x-job-secret: "{{jobSecret}}"
+order: 2000

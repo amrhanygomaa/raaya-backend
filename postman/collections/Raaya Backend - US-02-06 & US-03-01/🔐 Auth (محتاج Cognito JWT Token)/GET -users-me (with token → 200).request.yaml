@@ -1,0 +1,7 @@
+$kind: http-request
+name: GET /users/me (with token → 200)
+url: "{{baseUrl}}/users/me"
+method: GET
+headers:
+  Authorization: Bearer {{token}}
+order: 3000
