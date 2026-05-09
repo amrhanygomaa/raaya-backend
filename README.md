@@ -147,6 +147,7 @@ npm run test:cov
 - [Handover Note](docs/handover-note.md)
 - [Monitoring Runbook](docs/monitoring-runbook.md)
 - [S3 Media Bucket Setup](docs/s3-media-bucket.md)
+- [Flutter Integration Guide](docs/flutter-integration.md)
 
 ## 📝 License
 

@@ -66,6 +66,7 @@ This folder is the final handover/submission index for US-10-08.
 | Monitoring runbook | `docs/monitoring-runbook.md` |
 | Demo data plan | `docs/demo-data-plan.md` |
 | S3 media bucket setup | `docs/s3-media-bucket.md` |
+| Flutter integration guide | `docs/flutter-integration.md` |
 
 ---
 
