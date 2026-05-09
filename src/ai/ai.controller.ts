@@ -447,7 +447,7 @@ export class AiController {
     });
 
     const command = new InvokeModelCommand({
-      modelId: 'anthropic.claude-haiku-20240307-v1:0',
+      modelId: 'anthropic.claude-3-haiku-20240307-v1:0',
       body: JSON.stringify({
         anthropic_version: 'bedrock-2023-05-31',
         max_tokens: 200,
@@ -478,7 +478,11 @@ export class AiController {
         sentiment,
         memoryUsed: request.memory.length > 0,
       };
-    } catch {
+    } catch (error) {
+      console.error(
+        '[AI] Bedrock call failed:',
+        error instanceof Error ? error.message : error,
+      );
       return this.buildFallbackChatResponse(request, 'bedrock_error');
     }
   }
