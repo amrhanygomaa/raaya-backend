@@ -20,11 +20,7 @@ import { Pool, QueryResult } from 'pg';
 import { PG_POOL } from '../database/database.module';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import {
-  MediaItem,
-  MediaUploadResult,
-  Visit,
-} from './family-bridge.schema';
+import { MediaItem, MediaUploadResult, Visit } from './family-bridge.schema';
 import { UploadMediaDto } from './dto/upload-media.dto';
 import { ConfirmMediaDto } from './dto/confirm-media.dto';
 import { BookVisitDto } from './dto/book-visit.dto';
@@ -47,11 +43,9 @@ function rowToMedia(row: Record<string, unknown>): MediaItem {
     status: row.status as MediaItem['status'],
     caption: (row.caption as string) ?? undefined,
     createdAt:
-      (row.created_at as Date)?.toISOString?.() ??
-      (row.created_at as string),
+      (row.created_at as Date)?.toISOString?.() ?? (row.created_at as string),
     updatedAt:
-      (row.updated_at as Date)?.toISOString?.() ??
-      (row.updated_at as string),
+      (row.updated_at as Date)?.toISOString?.() ?? (row.updated_at as string),
   };
 }
 
@@ -72,11 +66,9 @@ function rowToVisit(row: Record<string, unknown>): Visit {
     approvedBy: (row.approved_by as string) ?? undefined,
     notes: (row.notes as string) ?? undefined,
     createdAt:
-      (row.created_at as Date)?.toISOString?.() ??
-      (row.created_at as string),
+      (row.created_at as Date)?.toISOString?.() ?? (row.created_at as string),
     updatedAt:
-      (row.updated_at as Date)?.toISOString?.() ??
-      (row.updated_at as string),
+      (row.updated_at as Date)?.toISOString?.() ?? (row.updated_at as string),
   };
 }
 
@@ -119,10 +111,7 @@ export class FamilyBridgeService {
       WHERE resident_id = $1 AND email = $2
       LIMIT 1
     `;
-    const result: QueryResult = await this.pool.query(sql, [
-      residentId,
-      email,
-    ]);
+    const result: QueryResult = await this.pool.query(sql, [residentId, email]);
 
     if (result.rowCount === 0) {
       throw new ForbiddenException(
@@ -180,7 +169,9 @@ export class FamilyBridgeService {
       expiresIn: 900,
     });
 
-    this.logger.log(`Presigned upload created: ${media.id} → s3://${this.bucket}/${s3Key}`);
+    this.logger.log(
+      `Presigned upload created: ${media.id} → s3://${this.bucket}/${s3Key}`,
+    );
 
     return { media, presignedUrl };
   }
@@ -332,9 +323,7 @@ export class FamilyBridgeService {
       RETURNING *
     `;
     const approvedBy =
-      dto.status === 'approved' || dto.status === 'rejected'
-        ? userId
-        : null;
+      dto.status === 'approved' || dto.status === 'rejected' ? userId : null;
 
     const result: QueryResult = await this.pool.query(sql, [
       dto.status,

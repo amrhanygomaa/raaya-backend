@@ -12,11 +12,7 @@ import {
   AdminDisableUserCommand,
   CognitoIdentityProviderClient,
 } from '@aws-sdk/client-cognito-identity-provider';
-import {
-  FacilitySettings,
-  ManagedUser,
-  ManagedUserRole,
-} from './admin-management.schema';
+import { FacilitySettings, ManagedUser } from './admin-management.schema';
 import { CreateManagedUserDto } from './dto/create-managed-user.dto';
 import { UpdateFacilitySettingsDto } from './dto/update-facility-settings.dto';
 
@@ -52,7 +48,8 @@ function rowToFacilitySettings(row: Record<string, unknown>): FacilitySettings {
     visitReminderHoursBefore: Number(row.visit_reminder_hours_before),
     alertPushEnabled: Boolean(row.alert_push_enabled),
     timezone: row.timezone as string,
-    vitalThresholds: (row.vital_thresholds ?? {}) as FacilitySettings['vitalThresholds'],
+    vitalThresholds: (row.vital_thresholds ??
+      {}) as FacilitySettings['vitalThresholds'],
     updatedBy: (row.updated_by as string) ?? undefined,
     createdAt: dateToIso(row.created_at) as string,
     updatedAt: dateToIso(row.updated_at) as string,
@@ -67,7 +64,8 @@ export class AdminManagementService {
 
   constructor(@Inject(PG_POOL) private readonly pool: Pool) {
     this.cognito = new CognitoIdentityProviderClient({
-      region: process.env.COGNITO_REGION ?? process.env.AWS_REGION ?? 'us-east-1',
+      region:
+        process.env.COGNITO_REGION ?? process.env.AWS_REGION ?? 'us-east-1',
     });
     this.userPoolId = process.env.COGNITO_USER_POOL_ID;
   }

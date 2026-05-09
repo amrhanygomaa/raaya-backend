@@ -62,7 +62,7 @@ describe('ResidentsController', () => {
     }).compile();
 
     controller = module.get(ResidentsController);
-    service = module.get(ResidentsService) as jest.Mocked<ResidentsService>;
+    service = module.get(ResidentsService);
   });
 
   // ── POST /residents ─────────────────────────────────────────────────────
@@ -87,7 +87,7 @@ describe('ResidentsController', () => {
   // ── GET /residents ──────────────────────────────────────────────────────
 
   describe('findAll()', () => {
-    it('returns residents for the caller\'s facility', async () => {
+    it("returns residents for the caller's facility", async () => {
       const result = await controller.findAll(mockRequest);
 
       expect(service.findAll).toHaveBeenCalledWith(FACILITY_ID, {

@@ -102,7 +102,7 @@ describe('FamilyBridgeController', () => {
     }).compile();
 
     controller = module.get(FamilyBridgeController);
-    service = module.get(FamilyBridgeService) as jest.Mocked<FamilyBridgeService>;
+    service = module.get(FamilyBridgeService);
   });
 
   // ── MEDIA ─────────────────────────────────────────────────────────────
@@ -137,11 +137,7 @@ describe('FamilyBridgeController', () => {
     it('confirms a pending media upload', async () => {
       const dto = { fileSizeBytes: 245000 };
 
-      const result = await controller.confirmUpload(
-        mockRequest,
-        MEDIA_ID,
-        dto,
-      );
+      const result = await controller.confirmUpload(mockRequest, MEDIA_ID, dto);
 
       expect(service.confirmUpload).toHaveBeenCalledWith(
         FACILITY_ID,
@@ -195,11 +191,7 @@ describe('FamilyBridgeController', () => {
         'khalid@example.sa',
         RESIDENT_ID,
       );
-      expect(service.bookVisit).toHaveBeenCalledWith(
-        FACILITY_ID,
-        USER_ID,
-        dto,
-      );
+      expect(service.bookVisit).toHaveBeenCalledWith(FACILITY_ID, USER_ID, dto);
       expect(result.id).toBe(VISIT_ID);
     });
   });

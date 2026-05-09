@@ -73,9 +73,7 @@ describe('AdminManagementController', () => {
     }).compile();
 
     controller = module.get(AdminManagementController);
-    service = module.get(
-      AdminManagementService,
-    ) as jest.Mocked<AdminManagementService>;
+    service = module.get(AdminManagementService);
   });
 
   describe('createUser()', () => {

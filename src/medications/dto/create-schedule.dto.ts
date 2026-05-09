@@ -41,7 +41,11 @@ export class CreateScheduleDto {
   @IsIn(VALID_ROUTES)
   route?: string;
 
-  @ApiPropertyOptional({ enum: VALID_FREQUENCIES, default: 'daily', example: 'daily' })
+  @ApiPropertyOptional({
+    enum: VALID_FREQUENCIES,
+    default: 'daily',
+    example: 'daily',
+  })
   @IsOptional()
   @IsIn(VALID_FREQUENCIES)
   frequency?: string;
@@ -57,7 +61,10 @@ export class CreateScheduleDto {
   @Matches(/^\d{2}:\d{2}$/, { each: true, message: 'Each time must be HH:mm' })
   scheduledTimes?: string[];
 
-  @ApiPropertyOptional({ example: '2025-01-10', description: 'ISO date YYYY-MM-DD' })
+  @ApiPropertyOptional({
+    example: '2025-01-10',
+    description: 'ISO date YYYY-MM-DD',
+  })
   @IsOptional()
   @IsDateString()
   startDate?: string;

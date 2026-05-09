@@ -47,7 +47,10 @@ export class RecordVitalsDto {
   @Max(45)
   temperature?: number;
 
-  @ApiPropertyOptional({ example: 16, description: 'Respiratory rate (breaths/min)' })
+  @ApiPropertyOptional({
+    example: 16,
+    description: 'Respiratory rate (breaths/min)',
+  })
   @IsOptional()
   @IsNumber()
   @Min(0)

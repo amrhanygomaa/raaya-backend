@@ -31,10 +31,7 @@ export class KpiService {
    * Returns a full KPI dashboard for the given facility and time window.
    * @param days  Number of days to look back (default 30).
    */
-  async getDashboard(
-    facilityId: string,
-    days = 30,
-  ): Promise<KpiDashboard> {
+  async getDashboard(facilityId: string, days = 30): Promise<KpiDashboard> {
     const to = new Date();
     const from = new Date();
     from.setDate(from.getDate() - days);
@@ -138,8 +135,16 @@ export class KpiService {
     `;
 
     const [mediaRes, visitRes] = await Promise.all([
-      this.pool.query(mediaSql, [facilityId, from.toISOString(), to.toISOString()]),
-      this.pool.query(visitSql, [facilityId, from.toISOString(), to.toISOString()]),
+      this.pool.query(mediaSql, [
+        facilityId,
+        from.toISOString(),
+        to.toISOString(),
+      ]),
+      this.pool.query(visitSql, [
+        facilityId,
+        from.toISOString(),
+        to.toISOString(),
+      ]),
     ]);
 
     const m = mediaRes.rows[0];
@@ -186,8 +191,16 @@ export class KpiService {
     `;
 
     const [statusRes, byTypeRes] = await Promise.all([
-      this.pool.query(statusSql, [facilityId, from.toISOString(), to.toISOString()]),
-      this.pool.query(byTypeSql, [facilityId, from.toISOString(), to.toISOString()]),
+      this.pool.query(statusSql, [
+        facilityId,
+        from.toISOString(),
+        to.toISOString(),
+      ]),
+      this.pool.query(byTypeSql, [
+        facilityId,
+        from.toISOString(),
+        to.toISOString(),
+      ]),
     ]);
 
     const s = statusRes.rows[0];
@@ -244,11 +257,11 @@ export class KpiService {
       inProgressComplaints: r.in_progress as number,
       resolvedComplaints: r.resolved as number,
       closedComplaints: r.closed as number,
-      closureRate:
-        total > 0 ? Math.round((resolved / total) * 10000) / 100 : 0,
-      avgResolutionHours: r.avg_hours != null
-        ? Math.round(Number(r.avg_hours) * 100) / 100
-        : null,
+      closureRate: total > 0 ? Math.round((resolved / total) * 10000) / 100 : 0,
+      avgResolutionHours:
+        r.avg_hours != null
+          ? Math.round(Number(r.avg_hours) * 100) / 100
+          : null,
     };
   }
 }

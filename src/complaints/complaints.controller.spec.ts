@@ -77,7 +77,7 @@ describe('ComplaintsController', () => {
     }).compile();
 
     controller = module.get(ComplaintsController);
-    service = module.get(ComplaintsService) as jest.Mocked<ComplaintsService>;
+    service = module.get(ComplaintsService);
   });
 
   // ── CREATE ────────────────────────────────────────────────────────────
@@ -94,11 +94,7 @@ describe('ComplaintsController', () => {
 
       const result = await controller.create(mockRequest, dto);
 
-      expect(service.create).toHaveBeenCalledWith(
-        FACILITY_ID,
-        USER_ID,
-        dto,
-      );
+      expect(service.create).toHaveBeenCalledWith(FACILITY_ID, USER_ID, dto);
       expect(result.status).toBe('open');
       expect(result.id).toBe(COMPLAINT_ID);
     });

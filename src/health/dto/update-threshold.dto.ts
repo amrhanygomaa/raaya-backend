@@ -18,12 +18,18 @@ export class UpdateThresholdDto {
   @MaxLength(100)
   vitalType: string;
 
-  @ApiPropertyOptional({ example: 60, description: 'Minimum normal value (null = no lower bound)' })
+  @ApiPropertyOptional({
+    example: 60,
+    description: 'Minimum normal value (null = no lower bound)',
+  })
   @IsOptional()
   @IsNumber()
   minValue?: number;
 
-  @ApiPropertyOptional({ example: 100, description: 'Maximum normal value (null = no upper bound)' })
+  @ApiPropertyOptional({
+    example: 100,
+    description: 'Maximum normal value (null = no upper bound)',
+  })
   @IsOptional()
   @IsNumber()
   maxValue?: number;

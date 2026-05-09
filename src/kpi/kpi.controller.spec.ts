@@ -80,7 +80,7 @@ describe('KpiController', () => {
     }).compile();
 
     controller = module.get(KpiController);
-    service = module.get(KpiService) as jest.Mocked<KpiService>;
+    service = module.get(KpiService);
   });
 
   describe('getDashboard()', () => {

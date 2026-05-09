@@ -52,7 +52,7 @@ export const VALID_TRANSITIONS: Record<ComplaintStatus, ComplaintStatus[]> = {
   open: ['in_progress', 'closed'],
   in_progress: ['resolved', 'closed'],
   resolved: ['closed'],
-  closed: [],                      // terminal state – no transitions out
+  closed: [], // terminal state – no transitions out
 };
 
 /** Returns true if moving from `current` to `next` is allowed. */

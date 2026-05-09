@@ -79,9 +79,20 @@ export class MedicationsController {
 
   @Get('schedules')
   @UseGuards(AuthGuard('jwt'))
-  @ApiOperation({ summary: 'List medication schedules for the caller\'s facility' })
-  @ApiQuery({ name: 'residentId', required: false, description: 'Filter by resident UUID' })
-  @ApiQuery({ name: 'active', required: false, type: Boolean, description: 'Filter by active status' })
+  @ApiOperation({
+    summary: "List medication schedules for the caller's facility",
+  })
+  @ApiQuery({
+    name: 'residentId',
+    required: false,
+    description: 'Filter by resident UUID',
+  })
+  @ApiQuery({
+    name: 'active',
+    required: false,
+    type: Boolean,
+    description: 'Filter by active status',
+  })
   @ApiResponse({ status: 200, description: 'Array of medication schedules.' })
   async findAllSchedules(
     @Request() req: AuthenticatedRequest,
@@ -130,10 +141,7 @@ export class MedicationsController {
   @ApiOperation({ summary: 'Log a dose (create a dose_log entry)' })
   @ApiResponse({ status: 201, description: 'Dose log created.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  async logDose(
-    @Request() req: AuthenticatedRequest,
-    @Body() dto: LogDoseDto,
-  ) {
+  async logDose(@Request() req: AuthenticatedRequest, @Body() dto: LogDoseDto) {
     return this.medicationsService.logDose(
       req.user.facilityId,
       req.user.userId,
@@ -143,10 +151,23 @@ export class MedicationsController {
 
   @Get('doses')
   @UseGuards(AuthGuard('jwt'))
-  @ApiOperation({ summary: 'List dose logs for the caller\'s facility' })
-  @ApiQuery({ name: 'residentId', required: false, description: 'Filter by resident UUID' })
-  @ApiQuery({ name: 'scheduleId', required: false, description: 'Filter by schedule UUID' })
-  @ApiQuery({ name: 'status', required: false, enum: ['pending', 'given', 'skipped', 'missed'], description: 'Filter by dose status' })
+  @ApiOperation({ summary: "List dose logs for the caller's facility" })
+  @ApiQuery({
+    name: 'residentId',
+    required: false,
+    description: 'Filter by resident UUID',
+  })
+  @ApiQuery({
+    name: 'scheduleId',
+    required: false,
+    description: 'Filter by schedule UUID',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['pending', 'given', 'skipped', 'missed'],
+    description: 'Filter by dose status',
+  })
   @ApiResponse({ status: 200, description: 'Array of dose logs.' })
   async findDoseLogs(
     @Request() req: AuthenticatedRequest,
@@ -186,8 +207,13 @@ export class MedicationsController {
 
   @Get('overdue')
   @UseGuards(AuthGuard('jwt'))
-  @ApiOperation({ summary: 'Get overdue doses (pending + past scheduled_time)' })
-  @ApiResponse({ status: 200, description: 'Array of overdue dose objects with medication context.' })
+  @ApiOperation({
+    summary: 'Get overdue doses (pending + past scheduled_time)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Array of overdue dose objects with medication context.',
+  })
   async findOverdue(@Request() req: AuthenticatedRequest) {
     return this.medicationsService.findOverdue(req.user.facilityId);
   }
@@ -221,8 +247,7 @@ export class MedicationsController {
     @Query('period') period?: string,
     @Query('residentId') residentId?: string,
   ) {
-    const validPeriod =
-      period === 'monthly' ? 'monthly' : 'weekly';
+    const validPeriod = period === 'monthly' ? 'monthly' : 'weekly';
     return this.medicationsService.getAdherenceReport(
       req.user.facilityId,
       validPeriod,

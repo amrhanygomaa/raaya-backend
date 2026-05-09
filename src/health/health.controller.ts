@@ -71,7 +71,10 @@ export class HealthController {
       'Inserts a vital-sign row and automatically checks facility thresholds. ' +
       'Any out-of-range values create internal alert records.',
   })
-  @ApiResponse({ status: 201, description: 'Vital sign + any triggered alerts.' })
+  @ApiResponse({
+    status: 201,
+    description: 'Vital sign + any triggered alerts.',
+  })
   async recordVitals(
     @Request() req: AuthenticatedRequest,
     @Body() dto: RecordVitalsDto,
@@ -85,8 +88,14 @@ export class HealthController {
 
   @Get('vitals')
   @UseGuards(AuthGuard('jwt'))
-  @ApiOperation({ summary: 'List vital-sign readings for the caller\'s facility' })
-  @ApiQuery({ name: 'residentId', required: false, description: 'Filter by resident UUID' })
+  @ApiOperation({
+    summary: "List vital-sign readings for the caller's facility",
+  })
+  @ApiQuery({
+    name: 'residentId',
+    required: false,
+    description: 'Filter by resident UUID',
+  })
   @ApiResponse({ status: 200, description: 'Array of vital-sign readings.' })
   async findVitals(
     @Request() req: AuthenticatedRequest,
@@ -103,8 +112,12 @@ export class HealthController {
 
   @Get('alerts')
   @UseGuards(AuthGuard('jwt'))
-  @ApiOperation({ summary: 'List vital alerts for the caller\'s facility' })
-  @ApiQuery({ name: 'residentId', required: false, description: 'Filter by resident UUID' })
+  @ApiOperation({ summary: "List vital alerts for the caller's facility" })
+  @ApiQuery({
+    name: 'residentId',
+    required: false,
+    description: 'Filter by resident UUID',
+  })
   @ApiQuery({
     name: 'status',
     required: false,
@@ -148,7 +161,7 @@ export class HealthController {
 
   @Get('thresholds')
   @UseGuards(AuthGuard('jwt'))
-  @ApiOperation({ summary: 'List vital thresholds for the caller\'s facility' })
+  @ApiOperation({ summary: "List vital thresholds for the caller's facility" })
   @ApiResponse({ status: 200, description: 'Array of threshold settings.' })
   async findThresholds(@Request() req: AuthenticatedRequest) {
     return this.healthService.findThresholds(req.user.facilityId);

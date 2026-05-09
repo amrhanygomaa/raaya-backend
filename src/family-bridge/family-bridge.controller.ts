@@ -70,7 +70,10 @@ export class FamilyBridgeController {
       'The client uploads the file directly to S3, then calls confirm.',
   })
   @ApiResponse({ status: 201, description: 'Presigned URL + media record.' })
-  @ApiResponse({ status: 403, description: 'Family account not linked to resident.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Family account not linked to resident.',
+  })
   async requestUpload(
     @Request() req: AuthenticatedRequest,
     @Body() dto: UploadMediaDto,
@@ -92,23 +95,26 @@ export class FamilyBridgeController {
   @ApiOperation({ summary: 'Confirm a media upload is complete' })
   @ApiParam({ name: 'id', description: 'Media item UUID' })
   @ApiResponse({ status: 200, description: 'Confirmed media item.' })
-  @ApiResponse({ status: 404, description: 'Media not found or already confirmed.' })
+  @ApiResponse({
+    status: 404,
+    description: 'Media not found or already confirmed.',
+  })
   async confirmUpload(
     @Request() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Body() dto: ConfirmMediaDto,
   ) {
-    return this.familyBridgeService.confirmUpload(
-      req.user.facilityId,
-      id,
-      dto,
-    );
+    return this.familyBridgeService.confirmUpload(req.user.facilityId, id, dto);
   }
 
   @Get('media')
   @UseGuards(AuthGuard('jwt'))
-  @ApiOperation({ summary: 'List media items for the caller\'s facility' })
-  @ApiQuery({ name: 'residentId', required: false, description: 'Filter by resident UUID' })
+  @ApiOperation({ summary: "List media items for the caller's facility" })
+  @ApiQuery({
+    name: 'residentId',
+    required: false,
+    description: 'Filter by resident UUID',
+  })
   @ApiQuery({
     name: 'status',
     required: false,
@@ -142,7 +148,10 @@ export class FamilyBridgeController {
   @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: 'Book a visit for a resident' })
   @ApiResponse({ status: 201, description: 'Visit booked.' })
-  @ApiResponse({ status: 403, description: 'Family account not linked to resident.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Family account not linked to resident.',
+  })
   async bookVisit(
     @Request() req: AuthenticatedRequest,
     @Body() dto: BookVisitDto,
@@ -161,8 +170,12 @@ export class FamilyBridgeController {
 
   @Get('visits')
   @UseGuards(AuthGuard('jwt'))
-  @ApiOperation({ summary: 'List visits for the caller\'s facility' })
-  @ApiQuery({ name: 'residentId', required: false, description: 'Filter by resident UUID' })
+  @ApiOperation({ summary: "List visits for the caller's facility" })
+  @ApiQuery({
+    name: 'residentId',
+    required: false,
+    description: 'Filter by resident UUID',
+  })
   @ApiQuery({
     name: 'status',
     required: false,
@@ -190,7 +203,9 @@ export class FamilyBridgeController {
 
   @Patch('visits/:id/status')
   @UseGuards(AuthGuard('jwt'))
-  @ApiOperation({ summary: 'Update visit status (approve / reject / complete / cancel)' })
+  @ApiOperation({
+    summary: 'Update visit status (approve / reject / complete / cancel)',
+  })
   @ApiParam({ name: 'id', description: 'Visit UUID' })
   @ApiResponse({ status: 200, description: 'Updated visit.' })
   @ApiResponse({ status: 404, description: 'Visit not found.' })

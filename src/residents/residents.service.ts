@@ -7,12 +7,7 @@
  * request body or URL.
  */
 
-import {
-  Injectable,
-  Inject,
-  NotFoundException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, Logger } from '@nestjs/common';
 import { Pool, QueryResult } from 'pg';
 import { PG_POOL } from '../database/database.module';
 import { Resident } from './residents.schema';
@@ -26,18 +21,25 @@ function rowToResident(row: Record<string, unknown>): Resident {
     facilityId: row.facility_id as string,
     firstName: row.first_name as string,
     lastName: row.last_name as string,
-    dateOfBirth: (row.date_of_birth as Date)?.toISOString?.().slice(0, 10) ?? (row.date_of_birth as string),
+    dateOfBirth:
+      (row.date_of_birth as Date)?.toISOString?.().slice(0, 10) ??
+      (row.date_of_birth as string),
     gender: row.gender as Resident['gender'],
     nationalId: (row.national_id as string) ?? undefined,
     roomNumber: (row.room_number as string) ?? undefined,
-    admissionDate: (row.admission_date as Date)?.toISOString?.().slice(0, 10) ?? (row.admission_date as string),
+    admissionDate:
+      (row.admission_date as Date)?.toISOString?.().slice(0, 10) ??
+      (row.admission_date as string),
     dischargeDate: row.discharge_date
-      ? ((row.discharge_date as Date)?.toISOString?.().slice(0, 10) ?? (row.discharge_date as string))
+      ? ((row.discharge_date as Date)?.toISOString?.().slice(0, 10) ??
+        (row.discharge_date as string))
       : undefined,
     status: row.status as Resident['status'],
     notes: (row.notes as string) ?? undefined,
-    createdAt: (row.created_at as Date)?.toISOString?.() ?? (row.created_at as string),
-    updatedAt: (row.updated_at as Date)?.toISOString?.() ?? (row.updated_at as string),
+    createdAt:
+      (row.created_at as Date)?.toISOString?.() ?? (row.created_at as string),
+    updatedAt:
+      (row.updated_at as Date)?.toISOString?.() ?? (row.updated_at as string),
   };
 }
 
@@ -49,10 +51,7 @@ export class ResidentsService {
 
   // ── CREATE ─────────────────────────────────────────────────────────────────
 
-  async create(
-    facilityId: string,
-    dto: CreateResidentDto,
-  ): Promise<Resident> {
+  async create(facilityId: string, dto: CreateResidentDto): Promise<Resident> {
     const sql = `
       INSERT INTO residents
         (facility_id, first_name, last_name, date_of_birth, gender,
@@ -75,7 +74,9 @@ export class ResidentsService {
     ];
 
     const result: QueryResult = await this.pool.query(sql, params);
-    this.logger.log(`Created resident ${result.rows[0].id} in facility ${facilityId}`);
+    this.logger.log(
+      `Created resident ${result.rows[0].id} in facility ${facilityId}`,
+    );
     return rowToResident(result.rows[0]);
   }
 

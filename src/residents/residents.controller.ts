@@ -74,7 +74,7 @@ export class ResidentsController {
 
   @Get()
   @UseGuards(AuthGuard('jwt'))
-  @ApiOperation({ summary: 'List all residents for the caller\'s facility' })
+  @ApiOperation({ summary: "List all residents for the caller's facility" })
   @ApiQuery({
     name: 'status',
     required: false,
@@ -97,10 +97,7 @@ export class ResidentsController {
   @ApiParam({ name: 'id', description: 'Resident UUID' })
   @ApiResponse({ status: 200, description: 'Resident object.' })
   @ApiResponse({ status: 404, description: 'Resident not found.' })
-  async findOne(
-    @Request() req: AuthenticatedRequest,
-    @Param('id') id: string,
-  ) {
+  async findOne(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.residentsService.findOne(req.user.facilityId, id);
   }
 

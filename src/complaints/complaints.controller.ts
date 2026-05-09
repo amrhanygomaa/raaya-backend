@@ -75,7 +75,7 @@ export class ComplaintsController {
 
   @Get()
   @UseGuards(AuthGuard('jwt'))
-  @ApiOperation({ summary: 'List complaints for the caller\'s facility' })
+  @ApiOperation({ summary: "List complaints for the caller's facility" })
   @ApiQuery({
     name: 'status',
     required: false,
@@ -86,7 +86,11 @@ export class ComplaintsController {
     required: false,
     enum: ['low', 'medium', 'high', 'critical'],
   })
-  @ApiQuery({ name: 'residentId', required: false, description: 'Filter by resident UUID' })
+  @ApiQuery({
+    name: 'residentId',
+    required: false,
+    description: 'Filter by resident UUID',
+  })
   @ApiResponse({ status: 200, description: 'Array of complaints.' })
   async findAll(
     @Request() req: AuthenticatedRequest,
@@ -107,10 +111,7 @@ export class ComplaintsController {
   @ApiParam({ name: 'id', description: 'Complaint UUID' })
   @ApiResponse({ status: 200, description: 'Complaint object.' })
   @ApiResponse({ status: 404, description: 'Complaint not found.' })
-  async findOne(
-    @Request() req: AuthenticatedRequest,
-    @Param('id') id: string,
-  ) {
+  async findOne(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.complaintsService.findOne(req.user.facilityId, id);
   }
 
@@ -124,7 +125,10 @@ export class ComplaintsController {
       'Audit fields (resolved_by, resolved_at) are set automatically on resolution.',
   })
   @ApiParam({ name: 'id', description: 'Complaint UUID' })
-  @ApiResponse({ status: 200, description: 'Updated complaint with audit fields.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Updated complaint with audit fields.',
+  })
   @ApiResponse({ status: 400, description: 'Invalid status transition.' })
   @ApiResponse({ status: 404, description: 'Complaint not found.' })
   async updateStatus(

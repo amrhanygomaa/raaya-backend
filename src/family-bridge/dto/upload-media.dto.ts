@@ -2,12 +2,7 @@
  * US-05-01 – DTO for requesting a presigned S3 upload URL.
  */
 
-import {
-  IsString,
-  IsNotEmpty,
-  IsOptional,
-  MaxLength,
-} from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UploadMediaDto {

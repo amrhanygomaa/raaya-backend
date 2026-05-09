@@ -9,13 +9,7 @@
  * Every query is facility-scoped via the caller's JWT facilityId.
  */
 
-import {
-  Controller,
-  Get,
-  Query,
-  UseGuards,
-  Request,
-} from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, Request } from '@nestjs/common';
 import {
   ApiTags,
   ApiBearerAuth,
@@ -47,7 +41,7 @@ export class KpiController {
     summary: 'KPI dashboard – aggregate metrics for admin reporting',
     description:
       'Returns medication adherence, family engagement, critical-alert count, ' +
-      'and complaint-closure metrics for the caller\'s facility.',
+      "and complaint-closure metrics for the caller's facility.",
   })
   @ApiQuery({
     name: 'days',
@@ -61,7 +55,9 @@ export class KpiController {
     @Query('days') days?: string,
   ) {
     const parsedDays =
-      days && !isNaN(Number(days)) ? Math.max(1, Math.min(365, Number(days))) : 30;
+      days && !isNaN(Number(days))
+        ? Math.max(1, Math.min(365, Number(days)))
+        : 30;
     return this.kpiService.getDashboard(req.user.facilityId, parsedDays);
   }
 }

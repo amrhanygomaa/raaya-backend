@@ -16,12 +16,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { MedicationsController } from './medications.controller';
 import { MedicationsService } from './medications.service';
-import {
-  MedicationSchedule,
-  DoseLog,
-  OverdueDose,
-  AdherenceReport,
-} from './medications.schema';
+import { MedicationSchedule, DoseLog, OverdueDose } from './medications.schema';
 
 const FACILITY_ID = 'facility-test';
 const USER_ID = 'nurse-user-1';
@@ -104,7 +99,11 @@ describe('MedicationsController', () => {
               from: '2025-05-01',
               to: '2025-05-08',
               facilityId: FACILITY_ID,
-              facilityAdherence: { totalDoses: 4, givenDoses: 2, percentage: 50 },
+              facilityAdherence: {
+                totalDoses: 4,
+                givenDoses: 2,
+                percentage: 50,
+              },
               residents: [
                 {
                   residentId: RESIDENT_ID,
@@ -116,14 +115,14 @@ describe('MedicationsController', () => {
                   percentage: 50,
                 },
               ],
-            } as AdherenceReport),
+            }),
           },
         },
       ],
     }).compile();
 
     controller = module.get(MedicationsController);
-    service = module.get(MedicationsService) as jest.Mocked<MedicationsService>;
+    service = module.get(MedicationsService);
   });
 
   // ── SCHEDULE CRUD ─────────────────────────────────────────────────────
@@ -144,7 +143,7 @@ describe('MedicationsController', () => {
   });
 
   describe('findAllSchedules()', () => {
-    it('returns schedules for the caller\'s facility', async () => {
+    it("returns schedules for the caller's facility", async () => {
       const result = await controller.findAllSchedules(mockRequest);
 
       expect(service.findAllSchedules).toHaveBeenCalledWith(FACILITY_ID, {
@@ -177,7 +176,10 @@ describe('MedicationsController', () => {
     it('uses facilityId from JWT for scoping', async () => {
       const result = await controller.findOneSchedule(mockRequest, SCHEDULE_ID);
 
-      expect(service.findOneSchedule).toHaveBeenCalledWith(FACILITY_ID, SCHEDULE_ID);
+      expect(service.findOneSchedule).toHaveBeenCalledWith(
+        FACILITY_ID,
+        SCHEDULE_ID,
+      );
       expect(result.id).toBe(SCHEDULE_ID);
     });
   });
@@ -186,9 +188,17 @@ describe('MedicationsController', () => {
     it('passes facilityId and scheduleId to service', async () => {
       const dto = { dosage: '2 tablets' };
 
-      const result = await controller.updateSchedule(mockRequest, SCHEDULE_ID, dto);
+      const result = await controller.updateSchedule(
+        mockRequest,
+        SCHEDULE_ID,
+        dto,
+      );
 
-      expect(service.updateSchedule).toHaveBeenCalledWith(FACILITY_ID, SCHEDULE_ID, dto);
+      expect(service.updateSchedule).toHaveBeenCalledWith(
+        FACILITY_ID,
+        SCHEDULE_ID,
+        dto,
+      );
       expect(result.id).toBe(SCHEDULE_ID);
     });
   });
@@ -212,7 +222,7 @@ describe('MedicationsController', () => {
   });
 
   describe('findDoseLogs()', () => {
-    it('returns dose logs for the caller\'s facility', async () => {
+    it("returns dose logs for the caller's facility", async () => {
       const result = await controller.findDoseLogs(mockRequest);
 
       expect(service.findDoseLogs).toHaveBeenCalledWith(FACILITY_ID, {
@@ -224,7 +234,12 @@ describe('MedicationsController', () => {
     });
 
     it('passes all filters to the service', async () => {
-      await controller.findDoseLogs(mockRequest, RESIDENT_ID, SCHEDULE_ID, 'pending');
+      await controller.findDoseLogs(
+        mockRequest,
+        RESIDENT_ID,
+        SCHEDULE_ID,
+        'pending',
+      );
 
       expect(service.findDoseLogs).toHaveBeenCalledWith(FACILITY_ID, {
         residentId: RESIDENT_ID,
@@ -240,7 +255,12 @@ describe('MedicationsController', () => {
 
       const result = await controller.updateDose(mockRequest, DOSE_ID, dto);
 
-      expect(service.updateDose).toHaveBeenCalledWith(FACILITY_ID, DOSE_ID, USER_ID, dto);
+      expect(service.updateDose).toHaveBeenCalledWith(
+        FACILITY_ID,
+        DOSE_ID,
+        USER_ID,
+        dto,
+      );
       expect(result.id).toBe(DOSE_ID);
     });
   });
@@ -248,7 +268,7 @@ describe('MedicationsController', () => {
   // ── OVERDUE QUERY ─────────────────────────────────────────────────────
 
   describe('findOverdue()', () => {
-    it('returns overdue doses for the caller\'s facility', async () => {
+    it("returns overdue doses for the caller's facility", async () => {
       const result = await controller.findOverdue(mockRequest);
 
       expect(service.findOverdue).toHaveBeenCalledWith(FACILITY_ID);

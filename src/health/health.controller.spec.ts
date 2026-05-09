@@ -123,7 +123,7 @@ describe('HealthController', () => {
     }).compile();
 
     controller = module.get(HealthController);
-    service = module.get(HealthService) as jest.Mocked<HealthService>;
+    service = module.get(HealthService);
   });
 
   // ── VITALS ────────────────────────────────────────────────────────────

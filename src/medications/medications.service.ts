@@ -5,12 +5,7 @@
  * Every query is facility-scoped via the caller's JWT facilityId.
  */
 
-import {
-  Injectable,
-  Inject,
-  NotFoundException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, Logger } from '@nestjs/common';
 import { Pool, QueryResult } from 'pg';
 import { PG_POOL } from '../database/database.module';
 import {
@@ -42,18 +37,16 @@ function rowToSchedule(row: Record<string, unknown>): MedicationSchedule {
       (row.start_date as Date)?.toISOString?.().slice(0, 10) ??
       (row.start_date as string),
     endDate: row.end_date
-      ? (row.end_date as Date)?.toISOString?.().slice(0, 10) ??
-        (row.end_date as string)
+      ? ((row.end_date as Date)?.toISOString?.().slice(0, 10) ??
+        (row.end_date as string))
       : undefined,
     isActive: row.is_active as boolean,
     prescriber: (row.prescriber as string) ?? undefined,
     notes: (row.notes as string) ?? undefined,
     createdAt:
-      (row.created_at as Date)?.toISOString?.() ??
-      (row.created_at as string),
+      (row.created_at as Date)?.toISOString?.() ?? (row.created_at as string),
     updatedAt:
-      (row.updated_at as Date)?.toISOString?.() ??
-      (row.updated_at as string),
+      (row.updated_at as Date)?.toISOString?.() ?? (row.updated_at as string),
   };
 }
 
@@ -68,17 +61,15 @@ function rowToDoseLog(row: Record<string, unknown>): DoseLog {
       (row.scheduled_time as string),
     status: row.status as DoseLog['status'],
     administeredAt: row.administered_at
-      ? (row.administered_at as Date)?.toISOString?.() ??
-        (row.administered_at as string)
+      ? ((row.administered_at as Date)?.toISOString?.() ??
+        (row.administered_at as string))
       : undefined,
     administeredBy: (row.administered_by as string) ?? undefined,
     notes: (row.notes as string) ?? undefined,
     createdAt:
-      (row.created_at as Date)?.toISOString?.() ??
-      (row.created_at as string),
+      (row.created_at as Date)?.toISOString?.() ?? (row.created_at as string),
     updatedAt:
-      (row.updated_at as Date)?.toISOString?.() ??
-      (row.updated_at as string),
+      (row.updated_at as Date)?.toISOString?.() ?? (row.updated_at as string),
   };
 }
 
@@ -286,7 +277,8 @@ export class MedicationsService {
     `;
     const params = [
       dto.status,
-      dto.administeredAt ?? (dto.status === 'given' ? new Date().toISOString() : null),
+      dto.administeredAt ??
+        (dto.status === 'given' ? new Date().toISOString() : null),
       dto.status === 'given' ? userId : null,
       dto.notes ?? null,
       doseId,
@@ -387,7 +379,11 @@ export class MedicationsService {
     from.setDate(from.getDate() - days);
 
     let residentFilter = '';
-    const params: unknown[] = [facilityId, from.toISOString(), to.toISOString()];
+    const params: unknown[] = [
+      facilityId,
+      from.toISOString(),
+      to.toISOString(),
+    ];
 
     if (residentId) {
       residentFilter = `AND dl.resident_id = $4`;

@@ -33,17 +33,33 @@ export type DoseStatus = 'pending' | 'given' | 'skipped' | 'missed';
 // ── Validation arrays ────────────────────────────────────────────────────
 
 export const VALID_ROUTES: MedicationRoute[] = [
-  'oral', 'iv', 'im', 'sc', 'topical',
-  'inhalation', 'sublingual', 'rectal', 'other',
+  'oral',
+  'iv',
+  'im',
+  'sc',
+  'topical',
+  'inhalation',
+  'sublingual',
+  'rectal',
+  'other',
 ];
 
 export const VALID_FREQUENCIES: MedicationFrequency[] = [
-  'once', 'daily', 'bid', 'tid', 'qid',
-  'weekly', 'prn', 'other',
+  'once',
+  'daily',
+  'bid',
+  'tid',
+  'qid',
+  'weekly',
+  'prn',
+  'other',
 ];
 
 export const VALID_DOSE_STATUSES: DoseStatus[] = [
-  'pending', 'given', 'skipped', 'missed',
+  'pending',
+  'given',
+  'skipped',
+  'missed',
 ];
 
 // ── Type guards ──────────────────────────────────────────────────────────
@@ -67,8 +83,8 @@ export interface MedicationSchedule {
   dosage: string;
   route: MedicationRoute;
   frequency: MedicationFrequency;
-  scheduledTimes: string[];     // e.g. ['08:00', '20:00']
-  startDate: string;            // ISO date YYYY-MM-DD
+  scheduledTimes: string[]; // e.g. ['08:00', '20:00']
+  startDate: string; // ISO date YYYY-MM-DD
   endDate?: string;
   isActive: boolean;
   prescriber?: string;
@@ -82,9 +98,9 @@ export interface DoseLog {
   scheduleId: string;
   residentId: string;
   facilityId: string;
-  scheduledTime: string;        // ISO datetime
+  scheduledTime: string; // ISO datetime
   status: DoseStatus;
-  administeredAt?: string;      // ISO datetime
+  administeredAt?: string; // ISO datetime
   administeredBy?: string;
   notes?: string;
   createdAt: string;

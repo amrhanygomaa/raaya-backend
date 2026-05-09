@@ -11,12 +11,7 @@
  * Every query is facility-scoped via the caller's JWT facilityId.
  */
 
-import {
-  Injectable,
-  Inject,
-  NotFoundException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, Logger } from '@nestjs/common';
 import { Pool, QueryResult } from 'pg';
 import { PG_POOL } from '../database/database.module';
 import {
@@ -42,8 +37,7 @@ function rowToVitalSign(row: Record<string, unknown>): VitalSign {
     facilityId: row.facility_id as string,
     recordedBy: row.recorded_by as string,
     recordedAt:
-      (row.recorded_at as Date)?.toISOString?.() ??
-      (row.recorded_at as string),
+      (row.recorded_at as Date)?.toISOString?.() ?? (row.recorded_at as string),
     heartRate: toNum(row.heart_rate),
     bloodPressureSystolic: toNum(row.blood_pressure_systolic),
     bloodPressureDiastolic: toNum(row.blood_pressure_diastolic),
@@ -54,11 +48,9 @@ function rowToVitalSign(row: Record<string, unknown>): VitalSign {
     weight: toNum(row.weight),
     notes: (row.notes as string) ?? undefined,
     createdAt:
-      (row.created_at as Date)?.toISOString?.() ??
-      (row.created_at as string),
+      (row.created_at as Date)?.toISOString?.() ?? (row.created_at as string),
     updatedAt:
-      (row.updated_at as Date)?.toISOString?.() ??
-      (row.updated_at as string),
+      (row.updated_at as Date)?.toISOString?.() ?? (row.updated_at as string),
   };
 }
 
@@ -77,11 +69,9 @@ function rowToAlert(row: Record<string, unknown>): VitalAlert {
     acknowledgedBy: (row.acknowledged_by as string) ?? undefined,
     notes: (row.notes as string) ?? undefined,
     createdAt:
-      (row.created_at as Date)?.toISOString?.() ??
-      (row.created_at as string),
+      (row.created_at as Date)?.toISOString?.() ?? (row.created_at as string),
     updatedAt:
-      (row.updated_at as Date)?.toISOString?.() ??
-      (row.updated_at as string),
+      (row.updated_at as Date)?.toISOString?.() ?? (row.updated_at as string),
   };
 }
 
@@ -94,24 +84,46 @@ function rowToThreshold(row: Record<string, unknown>): VitalThreshold {
     maxValue: toNum(row.max_value),
     unit: row.unit as string,
     createdAt:
-      (row.created_at as Date)?.toISOString?.() ??
-      (row.created_at as string),
+      (row.created_at as Date)?.toISOString?.() ?? (row.created_at as string),
     updatedAt:
-      (row.updated_at as Date)?.toISOString?.() ??
-      (row.updated_at as string),
+      (row.updated_at as Date)?.toISOString?.() ?? (row.updated_at as string),
   };
 }
 
 // ── Mapping: DTO field → DB column / vital_type ─────────────────────────
 
-const VITAL_FIELD_MAP: { field: keyof RecordVitalsDto; column: string; vitalType: string }[] = [
-  { field: 'heartRate',              column: 'heart_rate',                vitalType: 'heart_rate' },
-  { field: 'bloodPressureSystolic',  column: 'blood_pressure_systolic',   vitalType: 'blood_pressure_systolic' },
-  { field: 'bloodPressureDiastolic', column: 'blood_pressure_diastolic',  vitalType: 'blood_pressure_diastolic' },
-  { field: 'temperature',           column: 'temperature',               vitalType: 'temperature' },
-  { field: 'respiratoryRate',       column: 'respiratory_rate',           vitalType: 'respiratory_rate' },
-  { field: 'oxygenSaturation',      column: 'oxygen_saturation',          vitalType: 'oxygen_saturation' },
-  { field: 'bloodGlucose',          column: 'blood_glucose',              vitalType: 'blood_glucose' },
+const VITAL_FIELD_MAP: {
+  field: keyof RecordVitalsDto;
+  column: string;
+  vitalType: string;
+}[] = [
+  { field: 'heartRate', column: 'heart_rate', vitalType: 'heart_rate' },
+  {
+    field: 'bloodPressureSystolic',
+    column: 'blood_pressure_systolic',
+    vitalType: 'blood_pressure_systolic',
+  },
+  {
+    field: 'bloodPressureDiastolic',
+    column: 'blood_pressure_diastolic',
+    vitalType: 'blood_pressure_diastolic',
+  },
+  { field: 'temperature', column: 'temperature', vitalType: 'temperature' },
+  {
+    field: 'respiratoryRate',
+    column: 'respiratory_rate',
+    vitalType: 'respiratory_rate',
+  },
+  {
+    field: 'oxygenSaturation',
+    column: 'oxygen_saturation',
+    vitalType: 'oxygen_saturation',
+  },
+  {
+    field: 'bloodGlucose',
+    column: 'blood_glucose',
+    vitalType: 'blood_glucose',
+  },
 ];
 
 @Injectable()

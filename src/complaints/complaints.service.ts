@@ -46,18 +46,15 @@ function rowToComplaint(row: Record<string, unknown>): Complaint {
     status: row.status as Complaint['status'],
     priority: row.priority as Complaint['priority'],
     resolvedBy: (row.resolved_by as string) ?? undefined,
-    resolvedAt:
-      row.resolved_at
-        ? ((row.resolved_at as Date)?.toISOString?.() ??
-          (row.resolved_at as string))
-        : undefined,
+    resolvedAt: row.resolved_at
+      ? ((row.resolved_at as Date)?.toISOString?.() ??
+        (row.resolved_at as string))
+      : undefined,
     resolutionNotes: (row.resolution_notes as string) ?? undefined,
     createdAt:
-      (row.created_at as Date)?.toISOString?.() ??
-      (row.created_at as string),
+      (row.created_at as Date)?.toISOString?.() ?? (row.created_at as string),
     updatedAt:
-      (row.updated_at as Date)?.toISOString?.() ??
-      (row.updated_at as string),
+      (row.updated_at as Date)?.toISOString?.() ?? (row.updated_at as string),
   };
 }
 
@@ -161,7 +158,7 @@ export class ComplaintsService {
   ): Promise<Complaint> {
     // 1. Fetch current complaint
     const current = await this.findOne(facilityId, id);
-    const currentStatus = current.status as ComplaintStatus;
+    const currentStatus = current.status;
     const nextStatus = dto.status as ComplaintStatus;
 
     // 2. Validate transition
@@ -175,8 +172,7 @@ export class ComplaintsService {
     }
 
     // 3. Build audit fields
-    const isResolution =
-      nextStatus === 'resolved' || nextStatus === 'closed';
+    const isResolution = nextStatus === 'resolved' || nextStatus === 'closed';
 
     const sql = `
       UPDATE complaints
