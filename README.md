@@ -143,6 +143,8 @@ npm run test:cov
 - [Environment and Secrets](docs/environment-and-secrets.md)
 - [AWS Light Foundation](docs/aws-light-foundation.md)
 - [Demo Script](docs/demo-script.md)
+- [Smoke-Pass Checklist](docs/smoke-pass-checklist.md)
+- [Handover Note](docs/handover-note.md)
 - [Monitoring Runbook](docs/monitoring-runbook.md)
 - [S3 Media Bucket Setup](docs/s3-media-bucket.md)
 

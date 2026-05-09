@@ -46,6 +46,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   } {
     if (!payload) throw new UnauthorizedException();
 
+    if (!payload['custom:facilityId']) throw new UnauthorizedException();
+
     // Support both cognito:groups (Cognito User Pool Groups)
     // and custom:role (Cognito custom attribute) for flexibility
     const groupRoles: string[] = payload['cognito:groups'] ?? [];

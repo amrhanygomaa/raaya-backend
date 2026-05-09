@@ -1,141 +1,222 @@
-# Graduation Demo Script
+# Graduation Demo Script — Final (US-10-08)
 
-Use this script for the backend part of the Raaya graduation demo. Keep the
-demo environment small, predictable, and easy to recover.
+> **One-page sequence** for the Raaya graduation presentation.
+> All data is pre-seeded — no manual DB edits needed.
+> Estimated time: 12–15 minutes.
 
-## Pre-Demo Setup
-
-1. Confirm GitHub Actions CI is green on `main`.
-2. Confirm the demo EC2 instance is running only when needed.
-3. Confirm `/home/ec2-user/.env` exists on EC2 and has:
-   - `AI_ENABLED=false` by default
-   - valid `COGNITO_USER_POOL_ID`
-   - valid `COGNITO_CLIENT_ID`
-   - valid `JOB_SECRET`
-4. If AI chat will be shown, enable it only right before the AI section.
-5. Confirm demo IDs and sample records from [demo-data-plan.md](demo-data-plan.md).
-
-## Backend Health
-
-Show that the deployed backend is alive:
+Set the backend URL once at the start:
 
 ```bash
-curl http://<demo-backend-host>:3000/health
+BACKEND=http://<demo-backend-host>:3000
+SECRET=<job-secret>
+TOKEN=<cognito-jwt>
 ```
 
-Expected result:
+---
 
-```json
-{ "status": "ok" }
-```
+## 0 — Pre-Demo Checklist (before audience)
 
-## Auth And Role Claims
+| # | Action | Command |
+|---|--------|---------|
+| 0a | CI is green on `main` | GitHub → Actions |
+| 0b | EC2 running + container healthy | `curl $BACKEND/health` → `ok` |
+| 0c | DB seeded | `npm run db:seed` (already done) |
+| 0d | In-memory notifications seeded | `curl -X POST $BACKEND/notifications/seed-demo` |
+| 0e | `AI_ENABLED=false` in `.env` | `grep AI_ENABLED /home/ec2-user/.env` |
 
-Show the protected auth endpoint:
+---
+
+## 1 — Health & Swagger (~1 min)
 
 ```bash
-curl http://<demo-backend-host>:3000/auth/me
+curl $BACKEND/health
 ```
 
-Expected result without a token: `401 Unauthorized`.
+Show Swagger UI in the browser: `$BACKEND/api/docs`
 
-Then call the same endpoint with a valid Cognito access token:
+---
+
+## 2 — Auth & RBAC (~1 min)
+
+Unauthenticated → **401**:
 
 ```bash
-curl http://<demo-backend-host>:3000/auth/me \
-  -H "Authorization: Bearer <cognito-jwt>"
+curl -i $BACKEND/auth/me
 ```
 
-Expected result includes:
-
-- `userId`
-- `email`
-- `role`
-- `facilityId`
-
-## Notifications
-
-Create a demo notification:
+With Cognito token → user profile:
 
 ```bash
-curl -X POST http://<demo-backend-host>:3000/notifications \
-  -H "Content-Type: application/json" \
-  -d '{"userId":"demo-user","message":"Medication reminder ready","type":"medication"}'
+curl $BACKEND/auth/me -H "Authorization: Bearer $TOKEN"
 ```
 
-Read the latest notifications:
+---
+
+## 3 — Residents (~2 min)
+
+List all residents (3 seeded):
 
 ```bash
-curl http://<demo-backend-host>:3000/notifications/demo-user
+curl $BACKEND/residents -H "Authorization: Bearer $TOKEN"
 ```
 
-Mark one notification as read:
+Get Ahmad Al-Rashid by ID:
 
 ```bash
-curl -X PATCH http://<demo-backend-host>:3000/notifications/<notification-id>/read
+curl $BACKEND/residents/a1b2c3d4-0000-0000-0000-000000000001 \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
-## Scheduled Jobs
+---
 
-Use the same `JOB_SECRET` configured on the backend:
+## 4 — Medications (~2 min)
+
+List schedules (4 seeded across 3 residents):
 
 ```bash
-curl -X POST http://<demo-backend-host>:3000/jobs/medication-reminder \
-  -H "x-job-secret: <job-secret>"
+curl "$BACKEND/medications/schedules" -H "Authorization: Bearer $TOKEN"
 ```
+
+Show Ahmad's overdue doses:
 
 ```bash
-curl -X POST http://<demo-backend-host>:3000/jobs/daily-digest \
-  -H "x-job-secret: <job-secret>"
+curl "$BACKEND/medications/overdue" -H "Authorization: Bearer $TOKEN"
 ```
 
-Expected result: `status: ok`.
-
-## AI Insights With Cost Safety
-
-With `AI_ENABLED=false`, show safe fallback:
+Show weekly adherence report:
 
 ```bash
-curl http://<demo-backend-host>:3000/ai/recommendations/demo-resident
+curl "$BACKEND/medications/adherence?period=weekly" \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
-Expected result:
+---
 
-- `enabled: false`
-- `flag: AI_DISABLED`
-- no Bedrock call
+## 5 — Vitals & Alerts (~2 min)
 
-For the AI section only, enable AI on EC2:
+Show Ahmad's vital signs (normal + abnormal readings):
+
+```bash
+curl "$BACKEND/health/vitals?residentId=a1b2c3d4-0000-0000-0000-000000000001" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Show active vital alerts (heart rate + SpO2):
+
+```bash
+curl "$BACKEND/health/alerts" -H "Authorization: Bearer $TOKEN"
+```
+
+---
+
+## 6 — Complaints (~1 min)
+
+List all complaints (4 seeded: open, in_progress, resolved, closed):
+
+```bash
+curl "$BACKEND/complaints" -H "Authorization: Bearer $TOKEN"
+```
+
+---
+
+## 7 — Family Bridge (~1 min)
+
+Show media items:
+
+```bash
+curl "$BACKEND/family-bridge/media?residentId=a1b2c3d4-0000-0000-0000-000000000001" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Show visits (approved, completed, pending):
+
+```bash
+curl "$BACKEND/family-bridge/visits" -H "Authorization: Bearer $TOKEN"
+```
+
+---
+
+## 8 — Admin Management (~1 min)
+
+List managed users (Admin, Nurse, disabled):
+
+```bash
+curl "$BACKEND/admin/users" -H "Authorization: Bearer $TOKEN"
+```
+
+Show facility settings:
+
+```bash
+curl "$BACKEND/admin/settings" -H "Authorization: Bearer $TOKEN"
+```
+
+---
+
+## 9 — Notifications (~1 min)
+
+Show nurse notifications (medication reminders + vital alerts):
+
+```bash
+curl $BACKEND/notifications/nurse-seed
+```
+
+Mark as read:
+
+```bash
+curl -X PATCH $BACKEND/notifications/seed-<id>/read
+```
+
+---
+
+## 10 — Scheduled Jobs (~1 min)
+
+```bash
+curl -X POST $BACKEND/jobs/medication-reminder -H "x-job-secret: $SECRET"
+curl -X POST $BACKEND/jobs/daily-digest -H "x-job-secret: $SECRET"
+curl -X POST $BACKEND/jobs/weekly-ai-summary -H "x-job-secret: $SECRET"
+```
+
+Show job secret rejection:
+
+```bash
+curl -i -X POST $BACKEND/jobs/medication-reminder -H "x-job-secret: wrong"
+```
+
+---
+
+## 11 — AI Insights (~2 min)
+
+### Safe fallback (AI disabled)
+
+```bash
+curl $BACKEND/ai/recommendations/demo-resident
+```
+
+→ `enabled: false`, `flag: AI_DISABLED`, no Bedrock call.
+
+### Live AI (enable only for this section)
 
 ```bash
 sed -i '/^AI_ENABLED=/d' /home/ec2-user/.env
 echo "AI_ENABLED=true" >> /home/ec2-user/.env
-docker restart raaya-api
+docker restart raaya-api && sleep 5
 ```
-
-Show AI recommendations:
 
 ```bash
-curl http://<demo-backend-host>:3000/ai/recommendations/demo-resident
+curl $BACKEND/ai/recommendations/demo-resident
 ```
 
-Expected result includes:
-
-- `summary`
-- `rationale`
-- `generatedAt`
-- `flag: HUMAN_REVIEW_REQUIRED`
-- medical disclaimer
+→ `summary`, `rationale`, `flag: HUMAN_REVIEW_REQUIRED`, medical disclaimer.
 
 Optional AI chat:
 
 ```bash
-curl -X POST http://<demo-backend-host>:3000/ai/chat \
+curl -X POST $BACKEND/ai/chat \
   -H "Content-Type: application/json" \
-  -d '{"residentName":"Mona","message":"أنا قلقة النهاردة"}'
+  -d '{"residentName":"Ahmad","message":"أنا حاسس بشوية تعب اليوم"}'
 ```
 
-After the AI section, disable AI again:
+### Disable AI immediately after
 
 ```bash
 sed -i '/^AI_ENABLED=/d' /home/ec2-user/.env
@@ -143,13 +224,49 @@ echo "AI_ENABLED=false" >> /home/ec2-user/.env
 docker restart raaya-api
 ```
 
-## Closing Line
+---
 
-End by showing the project is intentionally AWS-light:
+## 12 — KPI Dashboard (~30 sec)
 
-- manual deployments only
-- no automatic Bedrock usage
-- scheduled jobs are lightweight Lambda-to-backend calls
-- AI output is supportive, non-diagnostic, and human-review flagged
+```bash
+curl "$BACKEND/kpi/dashboard" -H "Authorization: Bearer $TOKEN"
+```
 
-Record the final pass using [smoke-test-checklist.md](smoke-test-checklist.md).
+---
+
+## Closing
+
+Summarize the architecture:
+
+- **AWS-light**: EC2 + RDS + ECR + Lambda + Cognito + S3 — no NAT Gateway, no Multi-AZ
+- **Manual deploy only**: GitHub Actions → ECR → EC2, never auto-deploys
+- **AI cost safety**: Bedrock disabled by default, human-review flagged
+- **Facility-scoped**: every query scoped by JWT `facilityId`
+- **CI green**: lint + 191 unit tests + e2e tests pass on every push
+
+---
+
+## Recovery / Rollback
+
+See [deployment-checklist.md](deployment-checklist.md) for full restart and rollback procedures.
+
+Quick restart:
+
+```bash
+docker restart raaya-api
+```
+
+Quick rollback to known-good image:
+
+```bash
+docker stop raaya-api && docker rm raaya-api
+docker run -d --name raaya-api --restart unless-stopped \
+  -p 3000:3000 --env-file /home/ec2-user/.env \
+  <ecr-registry>/raaya-backend:<known-good-sha>
+```
+
+---
+
+## Evidence
+
+Record the final pass using [smoke-pass-checklist.md](smoke-pass-checklist.md).
