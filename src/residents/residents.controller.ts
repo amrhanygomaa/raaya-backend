@@ -17,6 +17,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Patch,
   Param,
   Body,
@@ -38,6 +39,7 @@ import { Roles } from '../auth/roles.decorator';
 import { ResidentsService } from './residents.service';
 import { CreateResidentDto } from './dto/create-resident.dto';
 import { UpdateResidentDto } from './dto/update-resident.dto';
+import { UpsertMedicalInfoDto } from './dto/upsert-medical-info.dto';
 
 interface AuthenticatedRequest {
   user: {
@@ -116,5 +118,40 @@ export class ResidentsController {
     @Body() dto: UpdateResidentDto,
   ) {
     return this.residentsService.update(req.user.facilityId, id, dto);
+  }
+
+  // ── GET /residents/:id/medical-info ─────────────────────────────────────────
+
+  @Get(':id/medical-info')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Get medical info for a resident' })
+  @ApiParam({ name: 'id', description: 'Resident UUID' })
+  @ApiResponse({ status: 200, description: 'Resident medical info.' })
+  @ApiResponse({ status: 404, description: 'Resident not found.' })
+  async getMedicalInfo(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
+    return this.residentsService.getMedicalInfo(req.user.facilityId, id);
+  }
+
+  // ── PUT /residents/:id/medical-info ─────────────────────────────────────────
+
+  @Put(':id/medical-info')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Upsert medical info for a resident' })
+  @ApiParam({ name: 'id', description: 'Resident UUID' })
+  @ApiResponse({ status: 200, description: 'Updated medical info.' })
+  @ApiResponse({ status: 404, description: 'Resident not found.' })
+  async upsertMedicalInfo(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() dto: UpsertMedicalInfoDto,
+  ) {
+    return this.residentsService.upsertMedicalInfo(
+      req.user.facilityId,
+      id,
+      dto,
+    );
   }
 }

@@ -284,4 +284,56 @@ export class AdminManagementService {
       );
     }
   }
+
+  // ── STAFF PERFORMANCE (US-15-05) ─────────────────────────────────────────
+
+  async getStaffPerformance(facilityId: string): Promise<
+    {
+      userId: string;
+      name: string;
+      role: string;
+      completionRate: number;
+      totalTasks: number;
+      completedTasks: number;
+      isOnline: boolean;
+    }[]
+  > {
+    const sql = `
+      SELECT
+        mu.cognito_sub      AS user_id,
+        mu.display_name     AS name,
+        mu.role,
+        COALESCE(t.total, 0)     AS total_tasks,
+        COALESCE(t.completed, 0) AS completed_tasks
+      FROM managed_users mu
+      LEFT JOIN LATERAL (
+        SELECT
+          COUNT(*)::int                         AS total,
+          COUNT(*) FILTER (WHERE is_completed)::int AS completed
+        FROM care_tasks ct
+        WHERE ct.facility_id = mu.facility_id
+          AND ct.completed_by = mu.cognito_sub
+      ) t ON true
+      WHERE mu.facility_id = $1
+        AND mu.status = 'active'
+      ORDER BY mu.display_name
+    `;
+
+    const result: QueryResult = await this.pool.query(sql, [facilityId]);
+
+    return result.rows.map((r: Record<string, unknown>) => ({
+      userId: r.user_id as string,
+      name: r.name as string,
+      role: r.role as string,
+      totalTasks: r.total_tasks as number,
+      completedTasks: r.completed_tasks as number,
+      completionRate:
+        (r.total_tasks as number) > 0
+          ? Math.round(
+              ((r.completed_tasks as number) / (r.total_tasks as number)) * 100,
+            )
+          : 0,
+      isOnline: false,
+    }));
+  }
 }

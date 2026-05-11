@@ -131,4 +131,18 @@ export class AdminManagementController {
       dto,
     );
   }
+
+  @Get('staff-performance')
+  @ApiOperation({
+    summary: 'Get staff performance metrics',
+    description:
+      'Admin-only. Computes completion rates from care_tasks per staff member.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Array of staff performance metrics.',
+  })
+  async getStaffPerformance(@Request() req: AuthenticatedRequest) {
+    return this.adminManagementService.getStaffPerformance(req.user.facilityId);
+  }
 }
