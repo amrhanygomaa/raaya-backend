@@ -9,6 +9,8 @@ import {
   Post,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { Pool } from 'pg';
+import { PG_POOL } from '../database/database.module';
 import {
   BedrockRuntimeClient,
   InvokeModelCommand,
@@ -196,9 +198,11 @@ const getLatestUserMessage = (
 @Controller('ai')
 export class AiController {
   private readonly client: AiModelClient;
-  private readonly residentMemory = new Map<string, ResidentMemoryRecord>();
 
-  constructor(@Optional() @Inject(AI_MODEL_CLIENT) client?: AiModelClient) {
+  constructor(
+    @Optional() @Inject(AI_MODEL_CLIENT) client?: AiModelClient,
+    @Optional() @Inject(PG_POOL) private readonly pool?: Pool,
+  ) {
     this.client =
       client ??
       new BedrockRuntimeClient({
@@ -306,13 +310,20 @@ residentId: ${residentId}
       },
     },
   })
-  getMemory(@Param('residentId') residentId: string) {
-    const record = this.residentMemory.get(residentId);
-    return {
-      residentId,
-      memory: record?.memory ?? [],
-      updatedAt: record?.updatedAt ?? null,
-    };
+  async getMemory(@Param('residentId') residentId: string) {
+    if (this.pool) {
+      const res = await this.pool.query<Record<string, unknown>>(
+        `SELECT facts, updated_at FROM ai_resident_memory WHERE resident_id = $1`,
+        [residentId],
+      );
+      const row = res.rows[0];
+      return {
+        residentId,
+        memory: (row?.facts as string[]) ?? [],
+        updatedAt: row ? (row.updated_at as Date)?.toISOString?.() : null,
+      };
+    }
+    return { residentId, memory: [], updatedAt: null };
   }
 
   @Post('memory/:residentId')
@@ -342,7 +353,10 @@ residentId: ${residentId}
     status: 400,
     description: 'memory must include at least one item.',
   })
-  saveMemory(@Param('residentId') residentId: string, @Body() body: unknown) {
+  async saveMemory(
+    @Param('residentId') residentId: string,
+    @Body() body: unknown,
+  ) {
     const source =
       isRecord(body) &&
       (body.memory !== undefined ||
@@ -355,16 +369,19 @@ residentId: ${residentId}
       throw new BadRequestException('memory must include at least one item');
     }
 
-    const record = {
-      memory,
-      updatedAt: new Date().toISOString(),
-    };
-    this.residentMemory.set(residentId, record);
+    const updatedAt = new Date().toISOString();
 
-    return {
-      residentId,
-      ...record,
-    };
+    if (this.pool) {
+      await this.pool.query(
+        `INSERT INTO ai_resident_memory (resident_id, facts, updated_at)
+         VALUES ($1, $2::jsonb, NOW())
+         ON CONFLICT (resident_id)
+         DO UPDATE SET facts = $2::jsonb, updated_at = NOW()`,
+        [residentId, JSON.stringify(memory)],
+      );
+    }
+
+    return { residentId, memory, updatedAt };
   }
 
   private normalizeChatRequest(body: unknown): NormalizedChatRequest {
