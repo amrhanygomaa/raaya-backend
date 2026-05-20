@@ -11,9 +11,12 @@
 
 import {
   Controller,
+  Delete,
   Get,
   Put,
   Post,
+  Patch,
+  Param,
   Body,
   UseGuards,
   Request,
@@ -22,6 +25,7 @@ import {
   ApiTags,
   ApiBearerAuth,
   ApiOperation,
+  ApiParam,
   ApiResponse,
 } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
@@ -29,6 +33,7 @@ import { VolunteersService } from './volunteers.service';
 import { UpdateVolunteerProfileDto } from './dto/update-profile.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { CreateReviewDto } from './dto/create-review.dto';
+import { UpsertOpportunityDto } from './dto/upsert-opportunity.dto';
 
 interface AuthenticatedRequest {
   user: {
@@ -79,6 +84,46 @@ export class VolunteersController {
     return this.volunteersService.getOpportunities(req.user.facilityId);
   }
 
+  @Post('opportunities')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Create a volunteer opportunity' })
+  @ApiResponse({ status: 201, description: 'Opportunity created.' })
+  async createOpportunity(
+    @Request() req: AuthenticatedRequest,
+    @Body() dto: UpsertOpportunityDto,
+  ) {
+    return this.volunteersService.createOpportunity(req.user.facilityId, dto);
+  }
+
+  @Patch('opportunities/:id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Update a volunteer opportunity' })
+  @ApiParam({ name: 'id', description: 'Opportunity UUID' })
+  @ApiResponse({ status: 200, description: 'Opportunity updated.' })
+  async updateOpportunity(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() dto: UpsertOpportunityDto,
+  ) {
+    return this.volunteersService.updateOpportunity(
+      req.user.facilityId,
+      id,
+      dto,
+    );
+  }
+
+  @Delete('opportunities/:id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Delete a volunteer opportunity' })
+  @ApiParam({ name: 'id', description: 'Opportunity UUID' })
+  @ApiResponse({ status: 200, description: 'Opportunity deleted.' })
+  async deleteOpportunity(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
+    return this.volunteersService.deleteOpportunity(req.user.facilityId, id);
+  }
+
   @Post('bookings')
   @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: 'Create a volunteer booking' })
@@ -102,6 +147,38 @@ export class VolunteersController {
     return this.volunteersService.getBookings(
       req.user.facilityId,
       req.user.userId,
+    );
+  }
+
+  @Patch('bookings/:id/cancel')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Cancel own volunteer booking' })
+  @ApiResponse({ status: 200, description: 'Booking cancelled.' })
+  async cancelBooking(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
+    return this.volunteersService.updateBookingStatus(
+      req.user.facilityId,
+      req.user.userId,
+      id,
+      'cancelled',
+    );
+  }
+
+  @Patch('bookings/:id/confirm-attendance')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Confirm attendance for own volunteer booking' })
+  @ApiResponse({ status: 200, description: 'Booking marked as done.' })
+  async confirmAttendance(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
+    return this.volunteersService.updateBookingStatus(
+      req.user.facilityId,
+      req.user.userId,
+      id,
+      'done',
     );
   }
 

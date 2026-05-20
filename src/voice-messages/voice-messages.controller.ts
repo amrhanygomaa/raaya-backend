@@ -2,7 +2,7 @@
  * US-15-01 – VoiceMessagesController
  *
  * Endpoints:
- *   POST   /voice-messages/upload  → Upload voice message (returns presigned URL stub)
+ *   POST   /voice-messages/upload  → Upload voice message (returns presigned S3 upload URL)
  *   GET    /voice-messages         → List messages (filterable by residentId)
  */
 
@@ -44,7 +44,7 @@ export class VoiceMessagesController {
   @Post('upload')
   @UseGuards(AuthGuard('jwt'))
   @ApiOperation({
-    summary: 'Upload a voice message (returns presigned URL stub)',
+    summary: 'Upload a voice message (returns presigned S3 upload URL)',
   })
   @ApiResponse({
     status: 201,

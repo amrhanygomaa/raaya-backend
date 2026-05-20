@@ -10,10 +10,12 @@ import { PG_POOL } from '../database/database.module';
 import {
   AdminCreateUserCommand,
   AdminDisableUserCommand,
+  AdminUpdateUserAttributesCommand,
   CognitoIdentityProviderClient,
 } from '@aws-sdk/client-cognito-identity-provider';
 import { FacilitySettings, ManagedUser } from './admin-management.schema';
 import { CreateManagedUserDto } from './dto/create-managed-user.dto';
+import { UpdateManagedUserDto } from './dto/update-managed-user.dto';
 import { UpdateFacilitySettingsDto } from './dto/update-facility-settings.dto';
 
 function dateToIso(value: unknown): string | undefined {
@@ -114,7 +116,9 @@ export class AdminManagementService {
         disabled_at = NULL
       RETURNING *
     `;
-    const result: QueryResult = await this.pool.query(sql, [
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, [
       cognitoSub ?? null,
       facilityId,
       dto.email,
@@ -148,8 +152,57 @@ export class AdminManagementService {
 
     sql += ` ORDER BY created_at DESC`;
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     return result.rows.map(rowToManagedUser);
+  }
+
+  async updateUser(
+    facilityId: string,
+    userId: string,
+    dto: UpdateManagedUserDto,
+  ): Promise<ManagedUser> {
+    const existing = await this.pool.query<Record<string, unknown>>(
+      `SELECT * FROM managed_users WHERE id = $1 AND facility_id = $2`,
+      [userId, facilityId],
+    );
+
+    if (existing.rowCount === 0) {
+      throw new NotFoundException(`Managed user ${userId} not found`);
+    }
+
+    const user = rowToManagedUser(existing.rows[0]);
+    const nextFullName = dto.fullName ?? user.fullName;
+    const nextRole = (dto.role ?? user.role) as ManagedUser['role'];
+
+    if (this.userPoolId && (dto.fullName || dto.role)) {
+      await this.cognito.send(
+        new AdminUpdateUserAttributesCommand({
+          UserPoolId: this.userPoolId,
+          Username: user.email,
+          UserAttributes: [
+            { Name: 'name', Value: nextFullName },
+            { Name: 'custom:role', Value: nextRole },
+          ],
+        }),
+      );
+    }
+
+    const result = await this.pool.query<Record<string, unknown>>(
+      `
+        UPDATE managed_users
+           SET full_name = $1,
+               role = $2
+         WHERE id = $3
+           AND facility_id = $4
+        RETURNING *
+      `,
+      [nextFullName, nextRole, userId, facilityId],
+    );
+
+    this.logger.log(`Managed user updated: ${user.email}`);
+    return rowToManagedUser(result.rows[0]);
   }
 
   async disableUser(
@@ -161,7 +214,7 @@ export class AdminManagementService {
       throw new BadRequestException('COGNITO_USER_POOL_ID is not configured');
     }
 
-    const existing = await this.pool.query(
+    const existing = await this.pool.query<Record<string, unknown>>(
       `SELECT * FROM managed_users WHERE id = $1 AND facility_id = $2`,
       [userId, facilityId],
     );
@@ -179,7 +232,7 @@ export class AdminManagementService {
       }),
     );
 
-    const result = await this.pool.query(
+    const result = await this.pool.query<Record<string, unknown>>(
       `
         UPDATE managed_users
            SET status = 'disabled',
@@ -203,13 +256,15 @@ export class AdminManagementService {
       ON CONFLICT (facility_id) DO NOTHING
       RETURNING *
     `;
-    const insertResult = await this.pool.query(sql, [facilityId]);
+    const insertResult = await this.pool.query<Record<string, unknown>>(sql, [
+      facilityId,
+    ]);
 
     if ((insertResult.rowCount ?? 0) > 0) {
       return rowToFacilitySettings(insertResult.rows[0]);
     }
 
-    const result = await this.pool.query(
+    const result = await this.pool.query<Record<string, unknown>>(
       `SELECT * FROM facility_settings WHERE facility_id = $1`,
       [facilityId],
     );
@@ -240,7 +295,7 @@ export class AdminManagementService {
         updated_by = EXCLUDED.updated_by
       RETURNING *
     `;
-    const result = await this.pool.query(sql, [
+    const result = await this.pool.query<Record<string, unknown>>(sql, [
       facilityId,
       dto.medicationReminderMinutesBefore ??
         existing.medicationReminderMinutesBefore,
@@ -264,7 +319,7 @@ export class AdminManagementService {
     thresholds: FacilitySettings['vitalThresholds'],
   ): Promise<void> {
     for (const [vitalType, threshold] of Object.entries(thresholds)) {
-      await this.pool.query(
+      await this.pool.query<Record<string, unknown>>(
         `
           INSERT INTO vital_thresholds (facility_id, vital_type, min_value, max_value, unit)
           VALUES ($1,$2,$3,$4,$5)
@@ -301,7 +356,7 @@ export class AdminManagementService {
     const sql = `
       SELECT
         mu.cognito_sub      AS user_id,
-        mu.display_name     AS name,
+        mu.full_name        AS name,
         mu.role,
         COALESCE(t.total, 0)     AS total_tasks,
         COALESCE(t.completed, 0) AS completed_tasks
@@ -316,10 +371,12 @@ export class AdminManagementService {
       ) t ON true
       WHERE mu.facility_id = $1
         AND mu.status = 'active'
-      ORDER BY mu.display_name
+      ORDER BY mu.full_name
     `;
 
-    const result: QueryResult = await this.pool.query(sql, [facilityId]);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, [facilityId]);
 
     return result.rows.map((r: Record<string, unknown>) => ({
       userId: r.user_id as string,

@@ -10,6 +10,19 @@ import { Pool } from 'pg';
 
 export const PG_POOL = 'PG_POOL';
 
+const sslConfig = () => {
+  const dbSsl = process.env.DB_SSL?.toLowerCase();
+  if (dbSsl === 'true' || dbSsl === 'require') {
+    return { rejectUnauthorized: false };
+  }
+  if (dbSsl === 'false' || dbSsl === 'disable') {
+    return undefined;
+  }
+  return process.env.NODE_ENV === 'production'
+    ? { rejectUnauthorized: false }
+    : undefined;
+};
+
 const poolFactory = {
   provide: PG_POOL,
   useFactory: (): Pool => {
@@ -21,10 +34,7 @@ const poolFactory = {
       database: process.env.DB_NAME,
       user: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
-      ssl:
-        process.env.NODE_ENV === 'production'
-          ? { rejectUnauthorized: false }
-          : undefined,
+      ssl: sslConfig(),
       max: 10,
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 5_000,

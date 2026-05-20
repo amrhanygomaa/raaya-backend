@@ -4,10 +4,6 @@ import {
   Headers,
   UnauthorizedException,
 } from '@nestjs/common';
-import {
-  buildDemoRecommendation,
-  buildDisabledRecommendation,
-} from '../ai/ai.insights';
 
 const isAiEnabled = (): boolean => process.env.AI_ENABLED === 'true';
 
@@ -39,7 +35,7 @@ export class JobsController {
       status: 'ok',
       job: 'daily-digest',
       timestamp: new Date().toISOString(),
-      message: 'Daily digest job accepted for the graduation demo pipeline.',
+      message: 'Daily digest job accepted.',
     };
   }
 
@@ -47,13 +43,22 @@ export class JobsController {
   runWeeklyAiSummary(@Headers('x-job-secret') secret: string | undefined) {
     this.assertJobSecret(secret);
 
-    const residentId = process.env.DEMO_RESIDENT_ID ?? 'demo-resident';
+    const residentId = process.env.AI_SUMMARY_RESIDENT_ID;
+    if (!residentId) {
+      return {
+        status: 'skipped',
+        job: 'weekly-ai-summary',
+        timestamp: new Date().toISOString(),
+        reason: 'AI_SUMMARY_RESIDENT_ID is not configured',
+      };
+    }
     if (!isAiEnabled()) {
       return {
         status: 'skipped',
         job: 'weekly-ai-summary',
         timestamp: new Date().toISOString(),
-        recommendation: buildDisabledRecommendation(residentId),
+        residentId,
+        reason: 'AI_ENABLED is not true',
       };
     }
 
@@ -61,7 +66,7 @@ export class JobsController {
       status: 'ok',
       job: 'weekly-ai-summary',
       timestamp: new Date().toISOString(),
-      recommendation: buildDemoRecommendation(residentId),
+      residentId,
     };
   }
 }

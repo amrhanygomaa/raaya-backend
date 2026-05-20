@@ -23,6 +23,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { AdminManagementService } from './admin-management.service';
 import { CreateManagedUserDto } from './dto/create-managed-user.dto';
+import { UpdateManagedUserDto } from './dto/update-managed-user.dto';
 import { UpdateFacilitySettingsDto } from './dto/update-facility-settings.dto';
 
 interface AuthenticatedRequest {
@@ -85,6 +86,23 @@ export class AdminManagementController {
       status,
       role,
     });
+  }
+
+  @Patch('users/:id')
+  @ApiOperation({
+    summary: 'Update a managed user',
+    description:
+      'Admin-only. Updates local managed_users fields and Cognito display attributes.',
+  })
+  @ApiParam({ name: 'id', description: 'managed_users UUID' })
+  @ApiResponse({ status: 200, description: 'Managed user updated.' })
+  @ApiResponse({ status: 404, description: 'Managed user not found.' })
+  async updateUser(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() dto: UpdateManagedUserDto,
+  ) {
+    return this.adminManagementService.updateUser(req.user.facilityId, id, dto);
   }
 
   @Patch('users/:id/disable')

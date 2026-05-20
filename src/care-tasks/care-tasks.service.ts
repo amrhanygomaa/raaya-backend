@@ -58,7 +58,9 @@ export class CareTasksService {
       dto.scheduledTime ?? null,
     ];
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     const task = rowToCareTask(result.rows[0]);
     this.logger.log(`Care task created: ${task.id}`);
     return task;
@@ -90,7 +92,9 @@ export class CareTasksService {
 
     sql += ` ORDER BY scheduled_time ASC NULLS LAST, created_at DESC`;
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     return result.rows.map(rowToCareTask);
   }
 
@@ -107,11 +111,9 @@ export class CareTasksService {
        WHERE id = $2 AND facility_id = $3
       RETURNING *
     `;
-    const result: QueryResult = await this.pool.query(sql, [
-      userId,
-      id,
-      facilityId,
-    ]);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, [userId, id, facilityId]);
 
     if (result.rowCount === 0) {
       throw new NotFoundException(`Care task ${id} not found`);
@@ -119,5 +121,40 @@ export class CareTasksService {
 
     this.logger.log(`Care task ${id} completed by ${userId}`);
     return rowToCareTask(result.rows[0]);
+  }
+
+  async reopen(facilityId: string, id: string): Promise<CareTask> {
+    const sql = `
+      UPDATE care_tasks
+         SET is_completed = FALSE,
+             completed_by = NULL,
+             completed_at = NULL
+       WHERE id = $1 AND facility_id = $2
+      RETURNING *
+    `;
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, [id, facilityId]);
+
+    if (result.rowCount === 0) {
+      throw new NotFoundException(`Care task ${id} not found`);
+    }
+
+    this.logger.log(`Care task reopened: ${id}`);
+    return rowToCareTask(result.rows[0]);
+  }
+
+  async delete(facilityId: string, id: string): Promise<{ id: string }> {
+    const result = await this.pool.query<Record<string, unknown>>(
+      `DELETE FROM care_tasks WHERE id = $1 AND facility_id = $2 RETURNING id`,
+      [id, facilityId],
+    );
+
+    if (result.rowCount === 0) {
+      throw new NotFoundException(`Care task ${id} not found`);
+    }
+
+    this.logger.log(`Care task deleted: ${id}`);
+    return { id };
   }
 }

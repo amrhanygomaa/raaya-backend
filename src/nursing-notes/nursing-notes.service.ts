@@ -57,7 +57,9 @@ export class NursingNotesService {
       dto.category ?? 'routine',
     ];
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     const note = rowToNursingNote(result.rows[0]);
     this.logger.log(`Nursing note created: ${note.id} by ${authorId}`);
     return note;
@@ -86,7 +88,9 @@ export class NursingNotesService {
 
     sql += ` ORDER BY created_at DESC`;
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     return result.rows.map(rowToNursingNote);
   }
 
@@ -94,7 +98,9 @@ export class NursingNotesService {
 
   async findOne(facilityId: string, id: string): Promise<NursingNote> {
     const sql = `SELECT * FROM nursing_notes WHERE id = $1 AND facility_id = $2`;
-    const result: QueryResult = await this.pool.query(sql, [id, facilityId]);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, [id, facilityId]);
 
     if (result.rowCount === 0) {
       throw new NotFoundException(`Nursing note ${id} not found`);
@@ -142,7 +148,9 @@ export class NursingNotesService {
       RETURNING *
     `;
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
 
     if (result.rowCount === 0) {
       throw new NotFoundException(`Nursing note ${id} not found`);

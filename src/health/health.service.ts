@@ -166,7 +166,9 @@ export class HealthService {
       dto.notes ?? null,
     ];
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     const vitalSign = rowToVitalSign(result.rows[0]);
 
     this.logger.log(
@@ -191,10 +193,11 @@ export class HealthService {
     dto: RecordVitalsDto,
   ): Promise<VitalAlert[]> {
     // Fetch all thresholds for this facility
-    const threshRes: QueryResult = await this.pool.query(
-      `SELECT * FROM vital_thresholds WHERE facility_id = $1`,
-      [facilityId],
-    );
+    const threshRes: QueryResult<Record<string, unknown>> =
+      await this.pool.query<Record<string, unknown>>(
+        `SELECT * FROM vital_thresholds WHERE facility_id = $1`,
+        [facilityId],
+      );
     const thresholds = new Map<string, { min?: number; max?: number }>();
     for (const row of threshRes.rows) {
       thresholds.set(row.vital_type as string, {
@@ -226,15 +229,16 @@ export class HealthService {
         VALUES ($1,$2,$3,$4,$5,$6,$7,'warning','active')
         RETURNING *
       `;
-      const alertResult: QueryResult = await this.pool.query(alertSql, [
-        vitalSignId,
-        residentId,
-        facilityId,
-        vitalType,
-        value,
-        thresh.min ?? null,
-        thresh.max ?? null,
-      ]);
+      const alertResult: QueryResult<Record<string, unknown>> =
+        await this.pool.query<Record<string, unknown>>(alertSql, [
+          vitalSignId,
+          residentId,
+          facilityId,
+          vitalType,
+          value,
+          thresh.min ?? null,
+          thresh.max ?? null,
+        ]);
 
       const alert = rowToAlert(alertResult.rows[0]);
       alerts.push(alert);
@@ -267,7 +271,9 @@ export class HealthService {
 
     sql += ` ORDER BY recorded_at DESC`;
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     return result.rows.map(rowToVitalSign);
   }
 
@@ -296,7 +302,9 @@ export class HealthService {
 
     sql += ` ORDER BY created_at DESC`;
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     return result.rows.map(rowToAlert);
   }
 
@@ -315,7 +323,9 @@ export class HealthService {
          AND facility_id = $5
       RETURNING *
     `;
-    const result: QueryResult = await this.pool.query(sql, [
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, [
       dto.status,
       dto.status === 'acknowledged' ? userId : null,
       dto.notes ?? null,
@@ -337,7 +347,9 @@ export class HealthService {
 
   async findThresholds(facilityId: string): Promise<VitalThreshold[]> {
     const sql = `SELECT * FROM vital_thresholds WHERE facility_id = $1 ORDER BY vital_type`;
-    const result: QueryResult = await this.pool.query(sql, [facilityId]);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, [facilityId]);
     return result.rows.map(rowToThreshold);
   }
 
@@ -355,7 +367,9 @@ export class HealthService {
         unit = COALESCE(EXCLUDED.unit, vital_thresholds.unit)
       RETURNING *
     `;
-    const result: QueryResult = await this.pool.query(sql, [
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, [
       facilityId,
       dto.vitalType,
       dto.minValue ?? null,

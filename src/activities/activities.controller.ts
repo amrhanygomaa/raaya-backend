@@ -12,6 +12,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
@@ -98,5 +99,15 @@ export class ActivitiesController {
     @Body() dto: UpdateActivityDto,
   ) {
     return this.activitiesService.update(req.user.facilityId, id, dto);
+  }
+
+  @Delete(':id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Delete an activity session' })
+  @ApiParam({ name: 'id', description: 'Activity UUID' })
+  @ApiResponse({ status: 200, description: 'Activity deleted.' })
+  @ApiResponse({ status: 404, description: 'Activity not found.' })
+  async delete(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
+    return this.activitiesService.delete(req.user.facilityId, id);
   }
 }

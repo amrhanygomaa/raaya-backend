@@ -6,9 +6,10 @@
  *  - Create notification
  *  - List notifications for a user (last 20)
  *  - Mark as read
+ *  - Delete one/all notifications
  */
 
-import { Injectable, Inject, Logger } from '@nestjs/common';
+import { Injectable, Inject, Logger, NotFoundException } from '@nestjs/common';
 import { Pool, QueryResult } from 'pg';
 import { PG_POOL } from '../database/database.module';
 import { Notification } from './notifications.schema';
@@ -46,7 +47,9 @@ export class NotificationsService {
     `;
     const params = [facilityId, dto.userId, dto.message, dto.type];
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     const notification = rowToNotification(result.rows[0]);
     this.logger.log(
       `Notification created: ${notification.id} for ${dto.userId}`,
@@ -66,10 +69,9 @@ export class NotificationsService {
        ORDER BY created_at DESC
        LIMIT 20
     `;
-    const result: QueryResult = await this.pool.query(sql, [
-      facilityId,
-      userId,
-    ]);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, [facilityId, userId]);
     return result.rows.map(rowToNotification);
   }
 
@@ -82,8 +84,44 @@ export class NotificationsService {
     const sql = `
       UPDATE notifications SET read = TRUE
        WHERE id = $1 AND facility_id = $2
+       RETURNING id
     `;
-    await this.pool.query(sql, [id, facilityId]);
+    const result = await this.pool.query<Record<string, unknown>>(sql, [
+      id,
+      facilityId,
+    ]);
+    if (result.rowCount === 0) {
+      throw new NotFoundException(`Notification ${id} not found`);
+    }
     return { status: 'ok' };
+  }
+
+  async deleteOne(
+    facilityId: string,
+    id: string,
+  ): Promise<{ deleted: number }> {
+    const result = await this.pool.query<Record<string, unknown>>(
+      `DELETE FROM notifications
+        WHERE id = $1 AND facility_id = $2
+        RETURNING id`,
+      [id, facilityId],
+    );
+    if (result.rowCount === 0) {
+      throw new NotFoundException(`Notification ${id} not found`);
+    }
+    return { deleted: result.rowCount ?? 0 };
+  }
+
+  async deleteByUser(
+    facilityId: string,
+    userId: string,
+  ): Promise<{ deleted: number }> {
+    const result = await this.pool.query<Record<string, unknown>>(
+      `DELETE FROM notifications
+        WHERE facility_id = $1 AND user_id = $2
+        RETURNING id`,
+      [facilityId, userId],
+    );
+    return { deleted: result.rowCount ?? 0 };
   }
 }

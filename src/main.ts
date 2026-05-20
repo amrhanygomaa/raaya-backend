@@ -8,12 +8,33 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  const corsOrigin = process.env.CORS_ORIGIN?.split(',')
+  const configuredOrigins = process.env.CORS_ORIGIN?.split(',')
     .map((origin) => origin.trim())
     .filter((origin) => origin.length > 0);
+  const isLocalDev = process.env.NODE_ENV !== 'production';
 
   app.enableCors({
-    origin: corsOrigin && corsOrigin.length > 0 ? corsOrigin : true,
+    origin: (
+      origin: string | undefined,
+      callback: (error: Error | null, allow?: boolean) => void,
+    ) => {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      if (configuredOrigins?.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      if (
+        isLocalDev &&
+        /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)
+      ) {
+        callback(null, true);
+        return;
+      }
+      callback(null, false);
+    },
     credentials: true,
   });
 

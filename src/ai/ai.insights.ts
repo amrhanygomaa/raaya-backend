@@ -1,4 +1,4 @@
-import { AI_HUMAN_REVIEW_FLAG, AI_SUMMARY_DISCLAIMER } from './ai.guardrails';
+import { AI_SUMMARY_DISCLAIMER } from './ai.guardrails';
 
 export const AI_DISABLED_FLAG = 'AI_DISABLED';
 
@@ -18,23 +18,8 @@ export const buildDisabledRecommendation = (
   enabled: false,
   residentId,
   summary: 'AI feature is currently disabled',
-  rationale:
-    'AI insights are disabled by feature flag to avoid demo costs and keep the flow safe.',
+  rationale: 'AI insights are disabled by feature flag.',
   generatedAt: null,
   flag: AI_DISABLED_FLAG,
-  disclaimer: AI_SUMMARY_DISCLAIMER,
-});
-
-export const buildDemoRecommendation = (
-  residentId: string,
-  generatedAt = new Date(),
-): AiRecommendationResponse => ({
-  enabled: true,
-  residentId,
-  summary: 'المقيم بحالة جيدة عموماً ويحتاج متابعة روتينية من فريق الرعاية.',
-  rationale:
-    'هذا ملخص داعم مبني على بيانات العرض التجريبية، ولا يستبدل مراجعة الطبيب أو الممرضة.',
-  generatedAt: generatedAt.toISOString(),
-  flag: AI_HUMAN_REVIEW_FLAG,
   disclaimer: AI_SUMMARY_DISCLAIMER,
 });

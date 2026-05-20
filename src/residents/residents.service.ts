@@ -102,9 +102,11 @@ export class ResidentsService {
       dto.notes ?? null,
     ];
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     this.logger.log(
-      `Created resident ${result.rows[0].id} in facility ${facilityId}`,
+      `Created resident ${String(result.rows[0].id)} in facility ${facilityId}`,
     );
     return rowToResident(result.rows[0]);
   }
@@ -125,7 +127,9 @@ export class ResidentsService {
 
     sql += ` ORDER BY last_name, first_name`;
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     return result.rows.map(rowToResident);
   }
 
@@ -133,10 +137,9 @@ export class ResidentsService {
 
   async findOne(facilityId: string, residentId: string): Promise<Resident> {
     const sql = `SELECT * FROM residents WHERE id = $1 AND facility_id = $2`;
-    const result: QueryResult = await this.pool.query(sql, [
-      residentId,
-      facilityId,
-    ]);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, [residentId, facilityId]);
 
     if (result.rowCount === 0) {
       throw new NotFoundException(`Resident ${residentId} not found`);
@@ -194,7 +197,9 @@ export class ResidentsService {
       RETURNING *
     `;
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
 
     if (result.rowCount === 0) {
       throw new NotFoundException(`Resident ${residentId} not found`);
@@ -217,10 +222,9 @@ export class ResidentsService {
       SELECT * FROM resident_medical_info
        WHERE resident_id = $1 AND facility_id = $2
     `;
-    const result: QueryResult = await this.pool.query(sql, [
-      residentId,
-      facilityId,
-    ]);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, [residentId, facilityId]);
 
     if (result.rowCount === 0) {
       // Return empty medical info if none exists
@@ -270,7 +274,9 @@ export class ResidentsService {
       JSON.stringify(dto.chronicConditions ?? []),
     ];
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     this.logger.log(`Medical info upserted for resident ${residentId}`);
     return rowToMedicalInfo(result.rows[0]);
   }

@@ -12,6 +12,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
@@ -98,5 +99,15 @@ export class MealPlansController {
     @Body() dto: UpdateMealPlanDto,
   ) {
     return this.mealPlansService.update(req.user.facilityId, id, dto);
+  }
+
+  @Delete(':id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Delete a meal plan' })
+  @ApiParam({ name: 'id', description: 'Meal plan UUID' })
+  @ApiResponse({ status: 200, description: 'Meal plan deleted.' })
+  @ApiResponse({ status: 404, description: 'Meal plan not found.' })
+  async delete(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
+    return this.mealPlansService.delete(req.user.facilityId, id);
   }
 }

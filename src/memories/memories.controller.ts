@@ -2,7 +2,7 @@
  * US-14-06 – MemoriesController
  *
  * Endpoints:
- *   POST   /memories               → Create moment (returns presigned URL stub)
+ *   POST   /memories               → Create moment (returns presigned S3 upload URL)
  *   GET    /memories               → List moments (filterable by residentId)
  *   PATCH  /memories/:id/appreciate → Increment appreciation count
  */
@@ -12,6 +12,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
@@ -48,7 +49,7 @@ export class MemoriesController {
   @Post()
   @UseGuards(AuthGuard('jwt'))
   @ApiOperation({
-    summary: 'Create a memory moment (returns presigned URL stub)',
+    summary: 'Create a memory moment (returns presigned S3 upload URL)',
   })
   @ApiResponse({
     status: 201,
@@ -95,5 +96,15 @@ export class MemoriesController {
     @Param('id') id: string,
   ) {
     return this.memoriesService.appreciate(req.user.facilityId, id);
+  }
+
+  @Delete(':id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Delete a memory moment' })
+  @ApiParam({ name: 'id', description: 'Memory moment UUID' })
+  @ApiResponse({ status: 200, description: 'Memory moment deleted.' })
+  @ApiResponse({ status: 404, description: 'Moment not found.' })
+  async delete(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
+    return this.memoriesService.delete(req.user.facilityId, id);
   }
 }

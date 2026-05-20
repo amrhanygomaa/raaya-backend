@@ -13,6 +13,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
@@ -94,5 +95,15 @@ export class InventoryController {
     @Body() dto: UpdateStockDto,
   ) {
     return this.inventoryService.updateStock(req.user.facilityId, id, dto);
+  }
+
+  @Delete(':id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Delete an inventory item' })
+  @ApiParam({ name: 'id', description: 'Inventory item UUID' })
+  @ApiResponse({ status: 200, description: 'Inventory item deleted.' })
+  @ApiResponse({ status: 404, description: 'Item not found.' })
+  async delete(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
+    return this.inventoryService.delete(req.user.facilityId, id);
   }
 }

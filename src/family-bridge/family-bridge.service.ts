@@ -111,7 +111,9 @@ export class FamilyBridgeService {
       WHERE resident_id = $1 AND email = $2
       LIMIT 1
     `;
-    const result: QueryResult = await this.pool.query(sql, [residentId, email]);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, [residentId, email]);
 
     if (result.rowCount === 0) {
       throw new ForbiddenException(
@@ -156,7 +158,9 @@ export class FamilyBridgeService {
       dto.caption ?? null,
     ];
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     const media = rowToMedia(result.rows[0]);
 
     // Generate presigned PUT URL (15-min expiry)
@@ -194,11 +198,9 @@ export class FamilyBridgeService {
          AND status = 'pending_upload'
       RETURNING *
     `;
-    const result: QueryResult = await this.pool.query(sql, [
-      dto.fileSizeBytes ?? null,
-      mediaId,
-      facilityId,
-    ]);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, [dto.fileSizeBytes ?? null, mediaId, facilityId]);
 
     if (result.rowCount === 0) {
       throw new NotFoundException(
@@ -235,7 +237,9 @@ export class FamilyBridgeService {
 
     sql += ` ORDER BY created_at DESC`;
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     return result.rows.map(rowToMedia);
   }
 
@@ -267,9 +271,11 @@ export class FamilyBridgeService {
       dto.notes ?? null,
     ];
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     this.logger.log(
-      `Visit booked: ${result.rows[0].id} for resident ${dto.residentId}`,
+      `Visit booked: ${String(result.rows[0].id)} for resident ${dto.residentId}`,
     );
     return rowToVisit(result.rows[0]);
   }
@@ -299,7 +305,9 @@ export class FamilyBridgeService {
 
     sql += ` ORDER BY visit_date DESC, visit_time_start DESC`;
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     return result.rows.map(rowToVisit);
   }
 
@@ -325,13 +333,9 @@ export class FamilyBridgeService {
     const approvedBy =
       dto.status === 'approved' || dto.status === 'rejected' ? userId : null;
 
-    const result: QueryResult = await this.pool.query(sql, [
-      dto.status,
-      approvedBy,
-      dto.notes ?? null,
-      visitId,
-      facilityId,
-    ]);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, [dto.status, approvedBy, dto.notes ?? null, visitId, facilityId]);
 
     if (result.rowCount === 0) {
       throw new NotFoundException(`Visit ${visitId} not found`);

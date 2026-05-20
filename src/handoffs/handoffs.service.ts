@@ -62,7 +62,9 @@ export class HandoffsService {
       JSON.stringify(dto.pendingTasks ?? []),
     ];
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     const handoff = rowToHandoff(result.rows[0]);
     this.logger.log(`Shift handoff created: ${handoff.id}`);
     return handoff;
@@ -91,7 +93,9 @@ export class HandoffsService {
 
     sql += ` ORDER BY created_at DESC`;
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     return result.rows.map(rowToHandoff);
   }
 
@@ -99,7 +103,9 @@ export class HandoffsService {
 
   async findOne(facilityId: string, id: string): Promise<ShiftHandoff> {
     const sql = `SELECT * FROM shift_handoffs WHERE id = $1 AND facility_id = $2`;
-    const result: QueryResult = await this.pool.query(sql, [id, facilityId]);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, [id, facilityId]);
 
     if (result.rowCount === 0) {
       throw new NotFoundException(`Shift handoff ${id} not found`);

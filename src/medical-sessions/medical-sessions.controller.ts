@@ -10,6 +10,8 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
+  Param,
   Body,
   Query,
   UseGuards,
@@ -20,6 +22,7 @@ import {
   ApiBearerAuth,
   ApiOperation,
   ApiQuery,
+  ApiParam,
   ApiResponse,
 } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
@@ -73,5 +76,15 @@ export class MedicalSessionsController {
       residentId,
       type,
     });
+  }
+
+  @Delete(':id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Delete a medical session' })
+  @ApiParam({ name: 'id', description: 'Medical session UUID' })
+  @ApiResponse({ status: 200, description: 'Medical session deleted.' })
+  @ApiResponse({ status: 404, description: 'Medical session not found.' })
+  async delete(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
+    return this.medicalSessionsService.delete(req.user.facilityId, id);
   }
 }

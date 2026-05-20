@@ -12,6 +12,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
@@ -98,5 +99,15 @@ export class DoctorVisitsController {
     @Body() dto: UpdateDoctorVisitDto,
   ) {
     return this.doctorVisitsService.update(req.user.facilityId, id, dto);
+  }
+
+  @Delete(':id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Delete a doctor visit' })
+  @ApiParam({ name: 'id', description: 'Doctor visit UUID' })
+  @ApiResponse({ status: 200, description: 'Doctor visit deleted.' })
+  @ApiResponse({ status: 404, description: 'Visit not found.' })
+  async delete(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
+    return this.doctorVisitsService.delete(req.user.facilityId, id);
   }
 }

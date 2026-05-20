@@ -5,6 +5,7 @@
  *   POST   /care-tasks               → Create a care task
  *   GET    /care-tasks               → List tasks (filterable)
  *   PATCH  /care-tasks/:id/complete  → Mark task complete
+ *   PATCH  /care-tasks/:id/reopen    → Mark task incomplete
  */
 
 import {
@@ -12,6 +13,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
@@ -103,5 +105,25 @@ export class CareTasksController {
       id,
       req.user.userId,
     );
+  }
+
+  @Patch(':id/reopen')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Mark a care task as incomplete' })
+  @ApiParam({ name: 'id', description: 'Care task UUID' })
+  @ApiResponse({ status: 200, description: 'Task marked incomplete.' })
+  @ApiResponse({ status: 404, description: 'Care task not found.' })
+  async reopen(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
+    return this.careTasksService.reopen(req.user.facilityId, id);
+  }
+
+  @Delete(':id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Delete a care task' })
+  @ApiParam({ name: 'id', description: 'Care task UUID' })
+  @ApiResponse({ status: 200, description: 'Care task deleted.' })
+  @ApiResponse({ status: 404, description: 'Care task not found.' })
+  async delete(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
+    return this.careTasksService.delete(req.user.facilityId, id);
   }
 }

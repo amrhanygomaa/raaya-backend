@@ -54,8 +54,10 @@ export class InventoryService {
       dto.unit ?? 'unit',
     ];
 
-    const result: QueryResult = await this.pool.query(sql, params);
-    this.logger.log(`Inventory item created: ${result.rows[0].id}`);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
+    this.logger.log(`Inventory item created: ${String(result.rows[0].id)}`);
     return rowToItem(result.rows[0]);
   }
 
@@ -73,7 +75,9 @@ export class InventoryService {
 
     sql += ` ORDER BY name`;
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     return result.rows.map(rowToItem);
   }
 
@@ -89,11 +93,9 @@ export class InventoryService {
        WHERE id = $2 AND facility_id = $3
       RETURNING *
     `;
-    const result: QueryResult = await this.pool.query(sql, [
-      dto.currentStock,
-      id,
-      facilityId,
-    ]);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, [dto.currentStock, id, facilityId]);
 
     if (result.rowCount === 0) {
       throw new NotFoundException(`Inventory item ${id} not found`);
@@ -110,7 +112,23 @@ export class InventoryService {
          AND current_stock < min_required
        ORDER BY (min_required - current_stock) DESC
     `;
-    const result: QueryResult = await this.pool.query(sql, [facilityId]);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, [facilityId]);
     return result.rows.map(rowToItem);
+  }
+
+  async delete(facilityId: string, id: string): Promise<{ id: string }> {
+    const result = await this.pool.query<Record<string, unknown>>(
+      `DELETE FROM inventory_items WHERE id = $1 AND facility_id = $2 RETURNING id`,
+      [id, facilityId],
+    );
+
+    if (result.rowCount === 0) {
+      throw new NotFoundException(`Inventory item ${id} not found`);
+    }
+
+    this.logger.log(`Inventory item deleted: ${id}`);
+    return { id };
   }
 }

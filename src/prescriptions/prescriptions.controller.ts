@@ -10,6 +10,8 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
+  Param,
   Body,
   Query,
   UseGuards,
@@ -20,6 +22,7 @@ import {
   ApiBearerAuth,
   ApiOperation,
   ApiQuery,
+  ApiParam,
   ApiResponse,
 } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
@@ -68,5 +71,15 @@ export class PrescriptionsController {
     return this.prescriptionsService.findAll(req.user.facilityId, {
       residentId,
     });
+  }
+
+  @Delete(':id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Delete a prescription' })
+  @ApiParam({ name: 'id', description: 'Prescription UUID' })
+  @ApiResponse({ status: 200, description: 'Prescription deleted.' })
+  @ApiResponse({ status: 404, description: 'Prescription not found.' })
+  async delete(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
+    return this.prescriptionsService.delete(req.user.facilityId, id);
   }
 }

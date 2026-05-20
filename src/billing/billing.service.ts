@@ -51,8 +51,10 @@ export class BillingService {
       dto.dueDate ?? null,
     ];
 
-    const result: QueryResult = await this.pool.query(sql, params);
-    this.logger.log(`Bill created: ${result.rows[0].id}`);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
+    this.logger.log(`Bill created: ${String(result.rows[0].id)}`);
     return rowToBill(result.rows[0]);
   }
 
@@ -77,7 +79,9 @@ export class BillingService {
 
     sql += ` ORDER BY created_at DESC`;
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     return result.rows.map(rowToBill);
   }
 
@@ -88,7 +92,9 @@ export class BillingService {
        WHERE id = $1 AND facility_id = $2
       RETURNING *
     `;
-    const result: QueryResult = await this.pool.query(sql, [id, facilityId]);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, [id, facilityId]);
 
     if (result.rowCount === 0) {
       throw new NotFoundException(`Bill ${id} not found`);

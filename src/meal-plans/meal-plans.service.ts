@@ -58,8 +58,10 @@ export class MealPlansService {
       userId,
     ];
 
-    const result: QueryResult = await this.pool.query(sql, params);
-    this.logger.log(`Meal plan created: ${result.rows[0].id}`);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
+    this.logger.log(`Meal plan created: ${String(result.rows[0].id)}`);
     return rowToMealPlan(result.rows[0]);
   }
 
@@ -84,7 +86,9 @@ export class MealPlansService {
 
     sql += ` ORDER BY plan_date DESC`;
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     return result.rows.map(rowToMealPlan);
   }
 
@@ -115,7 +119,8 @@ export class MealPlansService {
 
     if (setClauses.length === 0) {
       const sql = `SELECT * FROM meal_plans WHERE id = $1 AND facility_id = $2`;
-      const result: QueryResult = await this.pool.query(sql, [id, facilityId]);
+      const result: QueryResult<Record<string, unknown>> =
+        await this.pool.query<Record<string, unknown>>(sql, [id, facilityId]);
       if (result.rowCount === 0)
         throw new NotFoundException(`Meal plan ${id} not found`);
       return rowToMealPlan(result.rows[0]);
@@ -132,11 +137,27 @@ export class MealPlansService {
       RETURNING *
     `;
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     if (result.rowCount === 0)
       throw new NotFoundException(`Meal plan ${id} not found`);
 
     this.logger.log(`Meal plan ${id} updated`);
     return rowToMealPlan(result.rows[0]);
+  }
+
+  async delete(facilityId: string, id: string): Promise<{ id: string }> {
+    const result = await this.pool.query<Record<string, unknown>>(
+      `DELETE FROM meal_plans WHERE id = $1 AND facility_id = $2 RETURNING id`,
+      [id, facilityId],
+    );
+
+    if (result.rowCount === 0) {
+      throw new NotFoundException(`Meal plan ${id} not found`);
+    }
+
+    this.logger.log(`Meal plan deleted: ${id}`);
+    return { id };
   }
 }

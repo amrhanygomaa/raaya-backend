@@ -58,8 +58,10 @@ export class DoctorVisitsService {
       userId,
     ];
 
-    const result: QueryResult = await this.pool.query(sql, params);
-    this.logger.log(`Doctor visit created: ${result.rows[0].id}`);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
+    this.logger.log(`Doctor visit created: ${String(result.rows[0].id)}`);
     return rowToVisit(result.rows[0]);
   }
 
@@ -82,7 +84,9 @@ export class DoctorVisitsService {
 
     sql += ` ORDER BY visit_date ASC`;
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     return result.rows.map(rowToVisit);
   }
 
@@ -127,7 +131,9 @@ export class DoctorVisitsService {
       RETURNING *
     `;
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     if (result.rowCount === 0) {
       throw new NotFoundException(`Doctor visit ${id} not found`);
     }
@@ -138,10 +144,26 @@ export class DoctorVisitsService {
 
   private async findOne(facilityId: string, id: string): Promise<DoctorVisit> {
     const sql = `SELECT * FROM doctor_visits WHERE id = $1 AND facility_id = $2`;
-    const result: QueryResult = await this.pool.query(sql, [id, facilityId]);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, [id, facilityId]);
     if (result.rowCount === 0) {
       throw new NotFoundException(`Doctor visit ${id} not found`);
     }
     return rowToVisit(result.rows[0]);
+  }
+
+  async delete(facilityId: string, id: string): Promise<{ id: string }> {
+    const result = await this.pool.query<Record<string, unknown>>(
+      `DELETE FROM doctor_visits WHERE id = $1 AND facility_id = $2 RETURNING id`,
+      [id, facilityId],
+    );
+
+    if (result.rowCount === 0) {
+      throw new NotFoundException(`Doctor visit ${id} not found`);
+    }
+
+    this.logger.log(`Doctor visit deleted: ${id}`);
+    return { id };
   }
 }

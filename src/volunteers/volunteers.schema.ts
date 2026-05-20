@@ -48,6 +48,13 @@ export interface VolunteerBooking {
   opportunityId: string;
   status: BookingStatus;
   createdAt: string;
+  title?: string;
+  timeInfo?: string;
+  location?: string;
+  points?: number;
+  hours?: number;
+  description?: string;
+  tags?: string[];
 }
 
 export interface VolunteerCertificate {

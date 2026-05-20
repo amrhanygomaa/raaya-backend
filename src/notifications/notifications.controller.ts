@@ -9,10 +9,13 @@
  *   POST   /notifications          → Create a notification
  *   GET    /notifications/:userId  → List notifications for a user (last 20)
  *   PATCH  /notifications/:id/read → Mark as read
+ *   DELETE /notifications/:id      → Delete one notification
+ *   DELETE /notifications/user/:userId → Delete all notifications for a user
  */
 
 import {
   Controller,
+  Delete,
   Get,
   Post,
   Patch,
@@ -84,5 +87,29 @@ export class NotificationsController {
     @Param('id') id: string,
   ) {
     return this.notificationsService.markAsRead(req.user.facilityId, id);
+  }
+
+  @Delete('user/:userId')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Delete all notifications for a user' })
+  @ApiParam({ name: 'userId', description: 'User identifier' })
+  @ApiResponse({ status: 200, description: 'Notifications deleted.' })
+  async deleteByUser(
+    @Request() req: AuthenticatedRequest,
+    @Param('userId') userId: string,
+  ) {
+    return this.notificationsService.deleteByUser(req.user.facilityId, userId);
+  }
+
+  @Delete(':id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Delete a notification' })
+  @ApiParam({ name: 'id', description: 'Notification UUID' })
+  @ApiResponse({ status: 200, description: 'Notification deleted.' })
+  async deleteOne(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
+    return this.notificationsService.deleteOne(req.user.facilityId, id);
   }
 }

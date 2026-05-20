@@ -121,9 +121,11 @@ export class MedicationsService {
       dto.notes ?? null,
     ];
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     this.logger.log(
-      `Created schedule ${result.rows[0].id} for resident ${dto.residentId}`,
+      `Created schedule ${String(result.rows[0].id)} for resident ${dto.residentId}`,
     );
     return rowToSchedule(result.rows[0]);
   }
@@ -149,7 +151,9 @@ export class MedicationsService {
 
     sql += ` ORDER BY medication_name`;
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     return result.rows.map(rowToSchedule);
   }
 
@@ -158,10 +162,9 @@ export class MedicationsService {
     scheduleId: string,
   ): Promise<MedicationSchedule> {
     const sql = `SELECT * FROM medication_schedules WHERE id = $1 AND facility_id = $2`;
-    const result: QueryResult = await this.pool.query(sql, [
-      scheduleId,
-      facilityId,
-    ]);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, [scheduleId, facilityId]);
 
     if (result.rowCount === 0) {
       throw new NotFoundException(`Schedule ${scheduleId} not found`);
@@ -215,7 +218,9 @@ export class MedicationsService {
       RETURNING *
     `;
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
 
     if (result.rowCount === 0) {
       throw new NotFoundException(`Schedule ${scheduleId} not found`);
@@ -252,9 +257,11 @@ export class MedicationsService {
       dto.notes ?? null,
     ];
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     this.logger.log(
-      `Logged dose ${result.rows[0].id} [${dto.status}] for schedule ${dto.scheduleId}`,
+      `Logged dose ${String(result.rows[0].id)} [${dto.status}] for schedule ${dto.scheduleId}`,
     );
     return rowToDoseLog(result.rows[0]);
   }
@@ -285,7 +292,9 @@ export class MedicationsService {
       facilityId,
     ];
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
 
     if (result.rowCount === 0) {
       throw new NotFoundException(`Dose log ${doseId} not found`);
@@ -321,7 +330,9 @@ export class MedicationsService {
 
     sql += ` ORDER BY scheduled_time DESC`;
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     return result.rows.map(rowToDoseLog);
   }
 
@@ -352,7 +363,9 @@ export class MedicationsService {
       ORDER BY dl.scheduled_time ASC
     `;
 
-    const result: QueryResult = await this.pool.query(sql, [facilityId]);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, [facilityId]);
     return result.rows.map(rowToOverdueDose);
   }
 
@@ -408,7 +421,9 @@ export class MedicationsService {
       ORDER BY r.last_name, r.first_name
     `;
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
 
     const residents: ResidentAdherence[] = result.rows.map((row) => {
       const total = row.total_doses as number;

@@ -84,11 +84,9 @@ export class KpiService {
         AND scheduled_time >= $2
         AND scheduled_time <= $3
     `;
-    const result: QueryResult = await this.pool.query(sql, [
-      facilityId,
-      from.toISOString(),
-      to.toISOString(),
-    ]);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, [facilityId, from.toISOString(), to.toISOString()]);
     const r = result.rows[0];
     const total = r.total as number;
     const given = r.given as number;
@@ -135,12 +133,12 @@ export class KpiService {
     `;
 
     const [mediaRes, visitRes] = await Promise.all([
-      this.pool.query(mediaSql, [
+      this.pool.query<Record<string, unknown>>(mediaSql, [
         facilityId,
         from.toISOString(),
         to.toISOString(),
       ]),
-      this.pool.query(visitSql, [
+      this.pool.query<Record<string, unknown>>(visitSql, [
         facilityId,
         from.toISOString(),
         to.toISOString(),
@@ -191,12 +189,12 @@ export class KpiService {
     `;
 
     const [statusRes, byTypeRes] = await Promise.all([
-      this.pool.query(statusSql, [
+      this.pool.query<Record<string, unknown>>(statusSql, [
         facilityId,
         from.toISOString(),
         to.toISOString(),
       ]),
-      this.pool.query(byTypeSql, [
+      this.pool.query<Record<string, unknown>>(byTypeSql, [
         facilityId,
         from.toISOString(),
         to.toISOString(),
@@ -242,11 +240,9 @@ export class KpiService {
         AND created_at >= $2
         AND created_at <= $3
     `;
-    const result: QueryResult = await this.pool.query(sql, [
-      facilityId,
-      from.toISOString(),
-      to.toISOString(),
-    ]);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, [facilityId, from.toISOString(), to.toISOString()]);
     const r = result.rows[0];
     const total = r.total as number;
     const resolved = (r.resolved as number) + (r.closed as number);

@@ -55,8 +55,10 @@ export class ActivitiesService {
       userId,
     ];
 
-    const result: QueryResult = await this.pool.query(sql, params);
-    this.logger.log(`Activity created: ${result.rows[0].id}`);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
+    this.logger.log(`Activity created: ${String(result.rows[0].id)}`);
     return rowToActivity(result.rows[0]);
   }
 
@@ -79,7 +81,9 @@ export class ActivitiesService {
 
     sql += ` ORDER BY start_time ASC`;
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     return result.rows.map(rowToActivity);
   }
 
@@ -112,7 +116,8 @@ export class ActivitiesService {
 
     if (setClauses.length === 0) {
       const sql = `SELECT * FROM activity_sessions WHERE id = $1 AND facility_id = $2`;
-      const result: QueryResult = await this.pool.query(sql, [id, facilityId]);
+      const result: QueryResult<Record<string, unknown>> =
+        await this.pool.query<Record<string, unknown>>(sql, [id, facilityId]);
       if (result.rowCount === 0)
         throw new NotFoundException(`Activity ${id} not found`);
       return rowToActivity(result.rows[0]);
@@ -129,11 +134,27 @@ export class ActivitiesService {
       RETURNING *
     `;
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     if (result.rowCount === 0)
       throw new NotFoundException(`Activity ${id} not found`);
 
     this.logger.log(`Activity ${id} updated`);
     return rowToActivity(result.rows[0]);
+  }
+
+  async delete(facilityId: string, id: string): Promise<{ id: string }> {
+    const result = await this.pool.query<Record<string, unknown>>(
+      `DELETE FROM activity_sessions WHERE id = $1 AND facility_id = $2 RETURNING id`,
+      [id, facilityId],
+    );
+
+    if (result.rowCount === 0) {
+      throw new NotFoundException(`Activity ${id} not found`);
+    }
+
+    this.logger.log(`Activity deleted: ${id}`);
+    return { id };
   }
 }

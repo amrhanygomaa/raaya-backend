@@ -2,7 +2,7 @@
  * US-13-03 – MedicalSessionsService
  */
 
-import { Injectable, Inject, Logger } from '@nestjs/common';
+import { Injectable, Inject, Logger, NotFoundException } from '@nestjs/common';
 import { Pool, QueryResult } from 'pg';
 import { PG_POOL } from '../database/database.module';
 import { MedicalSession } from './medical-sessions.schema';
@@ -52,8 +52,10 @@ export class MedicalSessionsService {
       dto.notes ?? null,
     ];
 
-    const result: QueryResult = await this.pool.query(sql, params);
-    this.logger.log(`Medical session created: ${result.rows[0].id}`);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
+    this.logger.log(`Medical session created: ${String(result.rows[0].id)}`);
     return rowToSession(result.rows[0]);
   }
 
@@ -78,7 +80,23 @@ export class MedicalSessionsService {
 
     sql += ` ORDER BY session_date DESC, created_at DESC`;
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     return result.rows.map(rowToSession);
+  }
+
+  async delete(facilityId: string, id: string): Promise<{ id: string }> {
+    const result = await this.pool.query<Record<string, unknown>>(
+      `DELETE FROM medical_sessions WHERE id = $1 AND facility_id = $2 RETURNING id`,
+      [id, facilityId],
+    );
+
+    if (result.rowCount === 0) {
+      throw new NotFoundException(`Medical session ${id} not found`);
+    }
+
+    this.logger.log(`Medical session deleted: ${id}`);
+    return { id };
   }
 }

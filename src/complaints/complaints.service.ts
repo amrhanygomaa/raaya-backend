@@ -90,7 +90,9 @@ export class ComplaintsService {
       dto.priority ?? 'medium',
     ];
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     const complaint = rowToComplaint(result.rows[0]);
 
     this.logger.log(`Complaint created: ${complaint.id} by ${userId}`);
@@ -127,7 +129,9 @@ export class ComplaintsService {
 
     sql += ` ORDER BY created_at DESC`;
 
-    const result: QueryResult = await this.pool.query(sql, params);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, params);
     return result.rows.map(rowToComplaint);
   }
 
@@ -137,7 +141,9 @@ export class ComplaintsService {
 
   async findOne(facilityId: string, id: string): Promise<Complaint> {
     const sql = `SELECT * FROM complaints WHERE id = $1 AND facility_id = $2`;
-    const result: QueryResult = await this.pool.query(sql, [id, facilityId]);
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, [id, facilityId]);
 
     if (result.rowCount === 0) {
       throw new NotFoundException(`Complaint ${id} not found`);
@@ -184,7 +190,9 @@ export class ComplaintsService {
          AND facility_id = $6
       RETURNING *
     `;
-    const result: QueryResult = await this.pool.query(sql, [
+    const result: QueryResult<Record<string, unknown>> = await this.pool.query<
+      Record<string, unknown>
+    >(sql, [
       nextStatus,
       isResolution,
       userId,
