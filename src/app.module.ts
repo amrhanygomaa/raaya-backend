@@ -28,6 +28,9 @@ import { VolunteersModule } from './volunteers/volunteers.module';
 import { MemoriesModule } from './memories/memories.module';
 import { VoiceMessagesModule } from './voice-messages/voice-messages.module';
 import { BillingModule } from './billing/billing.module';
+import { SocialModule } from './social/social.module';
+import { ReportsModule } from './reports/reports.module';
+import { FamilyMembersModule } from './family-members/family-members.module';
 
 import { UsersController } from './users/users.controller';
 import { RolesGuard } from './auth/roles.guard';
@@ -59,6 +62,9 @@ import { RolesGuard } from './auth/roles.guard';
     MemoriesModule,
     VoiceMessagesModule,
     BillingModule,
+    SocialModule,
+    ReportsModule,
+    FamilyMembersModule,
   ],
 
   controllers: [AppController, UsersController],
