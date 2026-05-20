@@ -6,6 +6,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
 import { Notification } from './notifications.schema';
+import { PG_POOL } from '../database/database.module';
 
 const FACILITY_ID = 'facility-test';
 const USER_ID = 'nurse-seed';
@@ -46,6 +47,7 @@ describe('NotificationsController', () => {
             markAsRead: jest.fn().mockResolvedValue({ status: 'ok' }),
           },
         },
+        { provide: PG_POOL, useValue: { query: jest.fn() } },
       ],
     }).compile();
 
