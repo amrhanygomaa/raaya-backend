@@ -54,10 +54,29 @@ describe('AiController', () => {
   });
 
   describe('memory', () => {
-    it('stores resident memory and retrieves it', () => {
-      const controller = new AiController({ send: jest.fn() });
+    it('stores resident memory and retrieves it', async () => {
+      const storedFacts: string[] = [];
+      const mockPool = {
+        query: jest.fn().mockImplementation((sql: string, params: unknown[]) => {
+          if (/^INSERT/i.test(sql)) {
+            const parsed = JSON.parse(params[1] as string) as string[];
+            storedFacts.splice(0, storedFacts.length, ...parsed);
+            return Promise.resolve({ rows: [] });
+          }
+          return Promise.resolve({
+            rows: storedFacts.length > 0
+              ? [{ facts: storedFacts, updated_at: new Date() }]
+              : [],
+          });
+        }),
+      };
 
-      const saved = controller.saveMemory('resident-1', {
+      const controller = new AiController(
+        { send: jest.fn() },
+        mockPool as never,
+      );
+
+      const saved = await controller.saveMemory('resident-1', {
         memory: [{ label: 'هواية', value: 'زراعة الريحان' }],
       });
       expect(saved).toMatchObject({
@@ -65,7 +84,7 @@ describe('AiController', () => {
         memory: ['هواية: زراعة الريحان'],
       });
 
-      const retrieved = controller.getMemory('resident-1');
+      const retrieved = await controller.getMemory('resident-1');
       expect(retrieved.memory).toContain('هواية: زراعة الريحان');
     });
   });
