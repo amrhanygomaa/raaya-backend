@@ -35,19 +35,27 @@ export class AppController {
 
   @Get('health/db')
   @ApiOperation({ summary: 'DB connectivity diagnostic (temporary)' })
-  async getDbHealth(): Promise<object> {
+  async getDbHealth(): Promise<Record<string, unknown>> {
+    const env: Record<string, unknown> = {
+      DB_HOST: process.env.DB_HOST,
+      DB_NAME: process.env.DB_NAME,
+      DB_USER: process.env.DB_USER,
+      NODE_ENV: process.env.NODE_ENV,
+    };
     if (!this.pool) {
-      return { db: 'no pool injected', env: { DB_HOST: process.env.DB_HOST, DB_NAME: process.env.DB_NAME, DB_USER: process.env.DB_USER, NODE_ENV: process.env.NODE_ENV } };
+      return { db: 'no pool injected', env };
     }
     try {
-      const result = await this.pool.query('SELECT current_database() AS db, current_user AS usr, version() AS ver');
-      return { db: 'ok', ...result.rows[0] };
+      const result = await this.pool.query<Record<string, unknown>>(
+        'SELECT current_database() AS db, current_user AS usr, version() AS ver',
+      );
+      const row = result.rows[0] ?? {};
+      return { status: 'ok', ...row, env };
     } catch (err: unknown) {
-      const e = err as Error;
       return {
-        db: 'error',
-        message: e.message,
-        env: { DB_HOST: process.env.DB_HOST, DB_NAME: process.env.DB_NAME, DB_USER: process.env.DB_USER, NODE_ENV: process.env.NODE_ENV },
+        status: 'error',
+        message: err instanceof Error ? err.message : String(err),
+        env,
       };
     }
   }
