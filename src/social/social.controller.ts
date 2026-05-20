@@ -2,10 +2,14 @@ import {
   Body,
   Controller,
   Get,
+  Inject,
   Post,
+  Query,
   Request,
   UseGuards,
 } from '@nestjs/common';
+import { Pool } from 'pg';
+import { PG_POOL } from '../database/database.module';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -30,7 +34,10 @@ interface AuthenticatedRequest {
 @ApiBearerAuth()
 @Controller('social')
 export class SocialController {
-  constructor(private readonly socialService: SocialService) {}
+  constructor(
+    private readonly socialService: SocialService,
+    @Inject(PG_POOL) private readonly pool: Pool,
+  ) {}
 
   @Get('needs')
   @UseGuards(AuthGuard('jwt'))
@@ -92,5 +99,34 @@ export class SocialController {
   @ApiResponse({ status: 200, description: 'Array of KPIs.' })
   async getKpis(@Request() req: AuthenticatedRequest) {
     return this.socialService.getKpis(req.user.facilityId);
+  }
+
+  @Get('gds-questions')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({
+    summary: 'Get GDS (or other scale) assessment questions',
+    description: 'Returns questions from assessment_questions table. Facility-specific questions override global ones.',
+  })
+  @ApiQuery({ name: 'scale', required: false, example: 'GDS' })
+  @ApiResponse({ status: 200, description: 'Array of questions ordered by sort_order.' })
+  async getGdsQuestions(
+    @Request() req: AuthenticatedRequest,
+    @Query('scale') scale?: string,
+  ) {
+    const targetScale = scale?.toUpperCase() ?? 'GDS';
+    const res = await this.pool.query<Record<string, unknown>>(
+      `SELECT id, question_key, text_ar, question_type, options, sort_order
+       FROM assessment_questions
+       WHERE scale = $1 AND is_active = TRUE
+         AND (facility_id IS NULL OR facility_id = $2)
+       ORDER BY (facility_id IS NOT NULL) DESC, sort_order ASC`,
+      [targetScale, req.user.facilityId],
+    );
+    return res.rows.map((row) => ({
+      id: row.question_key ?? row.id,
+      text: row.text_ar,
+      type: row.question_type,
+      options: row.options ?? null,
+    }));
   }
 }

@@ -31,6 +31,9 @@ import { BillingModule } from './billing/billing.module';
 import { SocialModule } from './social/social.module';
 import { ReportsModule } from './reports/reports.module';
 import { FamilyMembersModule } from './family-members/family-members.module';
+import { EmergencyModule } from './emergency/emergency.module';
+import { MessagesModule } from './messages/messages.module';
+import { GatewayModule } from './gateway/gateway.module';
 
 import { UsersController } from './users/users.controller';
 import { RolesGuard } from './auth/roles.guard';
@@ -65,6 +68,9 @@ import { RolesGuard } from './auth/roles.guard';
     SocialModule,
     ReportsModule,
     FamilyMembersModule,
+    EmergencyModule,
+    MessagesModule,
+    GatewayModule,
   ],
 
   controllers: [AppController, UsersController],

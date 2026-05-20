@@ -23,6 +23,8 @@ import {
   AdminConfirmSignUpCommand,
   AdminUpdateUserAttributesCommand,
   CognitoIdentityProviderClient,
+  ConfirmForgotPasswordCommand,
+  ForgotPasswordCommand,
   InitiateAuthCommand,
   SignUpCommand,
 } from '@aws-sdk/client-cognito-identity-provider';
@@ -135,9 +137,13 @@ export class AuthController {
     const phone =
       typeof body.phone === 'string' ? body.phone.trim() : undefined;
     const facilityId =
-      typeof body.facilityId === 'string' && body.facilityId
-        ? body.facilityId
-        : 'facility-demo';
+      typeof body.facilityId === 'string' && body.facilityId.trim()
+        ? body.facilityId.trim()
+        : null;
+
+    if (!facilityId) {
+      throw new BadRequestException('facilityId is required');
+    }
     const linkedResidentId =
       typeof body.linkedResidentId === 'string'
         ? body.linkedResidentId
@@ -324,6 +330,124 @@ export class AuthController {
     } catch (error) {
       if (error instanceof UnauthorizedException) throw error;
       throw new UnauthorizedException('Invalid email or password');
+    }
+  }
+
+  @Post('forgot-password')
+  @ApiOperation({
+    summary: 'Request a password reset code via email',
+    description:
+      'Triggers the Cognito ForgotPassword flow — sends a verification code to the user email.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['email'],
+      properties: {
+        email: { type: 'string', example: 'nurse@raaya.demo' },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Reset code sent.' })
+  @ApiResponse({ status: 400, description: 'Missing email.' })
+  async forgotPassword(@Body() body: Record<string, unknown>) {
+    const clientId = process.env.COGNITO_CLIENT_ID;
+    if (!clientId) {
+      throw new InternalServerErrorException('Cognito is not configured');
+    }
+
+    const email = getBodyString(body, 'email');
+    if (!email) {
+      throw new BadRequestException('email is required');
+    }
+
+    const secretHash = buildSecretHash(
+      email,
+      clientId,
+      process.env.COGNITO_CLIENT_SECRET,
+    );
+
+    try {
+      await this.cognito.send(
+        new ForgotPasswordCommand({
+          ClientId: clientId,
+          Username: email,
+          ...(secretHash ? { SecretHash: secretHash } : {}),
+        }),
+      );
+      return { status: 'ok', message: 'Reset code sent to email.' };
+    } catch (error) {
+      const err = error as { name?: string; message?: string };
+      if (err.name === 'UserNotFoundException') {
+        // Don't reveal whether email exists
+        return { status: 'ok', message: 'Reset code sent to email.' };
+      }
+      throw new BadRequestException(err.message ?? 'Failed to send reset code');
+    }
+  }
+
+  @Post('confirm-forgot-password')
+  @ApiOperation({
+    summary: 'Confirm password reset with verification code',
+    description:
+      'Completes the Cognito ForgotPassword flow — sets a new password using the code.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['email', 'code', 'newPassword'],
+      properties: {
+        email: { type: 'string', example: 'nurse@raaya.demo' },
+        code: { type: 'string', example: '123456' },
+        newPassword: { type: 'string', example: 'NewPassword123!' },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Password reset successful.' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired code.' })
+  async confirmForgotPassword(@Body() body: Record<string, unknown>) {
+    const clientId = process.env.COGNITO_CLIENT_ID;
+    if (!clientId) {
+      throw new InternalServerErrorException('Cognito is not configured');
+    }
+
+    const email = getBodyString(body, 'email');
+    const code = getBodyString(body, 'code');
+    const newPassword = getBodyString(body, 'newPassword');
+
+    if (!email || !code || !newPassword) {
+      throw new BadRequestException('email, code, newPassword are required');
+    }
+    if (newPassword.length < 8) {
+      throw new BadRequestException('Password must be at least 8 characters');
+    }
+
+    const secretHash = buildSecretHash(
+      email,
+      clientId,
+      process.env.COGNITO_CLIENT_SECRET,
+    );
+
+    try {
+      await this.cognito.send(
+        new ConfirmForgotPasswordCommand({
+          ClientId: clientId,
+          Username: email,
+          ConfirmationCode: code,
+          Password: newPassword,
+          ...(secretHash ? { SecretHash: secretHash } : {}),
+        }),
+      );
+      return { status: 'ok', message: 'Password reset successful.' };
+    } catch (error) {
+      const err = error as { name?: string; message?: string };
+      if (
+        err.name === 'CodeMismatchException' ||
+        err.name === 'ExpiredCodeException'
+      ) {
+        throw new BadRequestException('Invalid or expired verification code');
+      }
+      throw new BadRequestException(err.message ?? 'Password reset failed');
     }
   }
 

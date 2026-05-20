@@ -96,6 +96,16 @@ jobs:
             done
           fi
 
+      - name: Copy Nginx config to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "nginx/raaya-api.conf"
+          target: "/home/ec2-user/raaya-backend/"
+          strip_components: 1
+
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -119,7 +129,7 @@ jobs:
             docker run -d \
               --name raaya-api \
               --restart unless-stopped \
-              -p 3000:3000 \
+              -p 127.0.0.1:3000:3000 \
               --env-file /home/ec2-user/.env \
               -e DB_NAME=raaya \
               -e DB_USER=raaya_admin \
@@ -130,8 +140,24 @@ jobs:
               --log-opt awslogs-create-group=true \
               ${{ secrets.ECR_REGISTRY }}/raaya-backend:latest
 
-            # Health check بعد الـ deploy
+            # Health check داخلي (بعيداً عن Nginx)
             sleep 5
-            curl -f http://localhost:3000/health \
-              && echo "✅ Deploy OK" \
-              || (echo "❌ Health check failed" && exit 1)
+            curl -f http://127.0.0.1:3000/health \
+              && echo "✅ Container OK" \
+              || (echo "❌ Container health check failed" && exit 1)
+
+            # تحديث Nginx config وإعادة التحميل
+            if [ -f /home/ec2-user/raaya-backend/raaya-api.conf ]; then
+              sudo cp /home/ec2-user/raaya-backend/raaya-api.conf \
+                      /etc/nginx/sites-available/raaya-api
+              sudo nginx -t \
+                && sudo systemctl reload nginx \
+                && echo "✅ Nginx reloaded" \
+                || echo "⚠️ Nginx reload failed — راجع الـ config"
+            fi
+
+            # Health check عبر HTTPS
+            sleep 2
+            curl -sf https://api.helpers-tech.com/health \
+              && echo "✅ HTTPS OK" \
+              || echo "⚠️ HTTPS check failed — Nginx أو الشهادة تحتاج مراجعة"
