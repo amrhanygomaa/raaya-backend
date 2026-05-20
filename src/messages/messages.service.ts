@@ -3,7 +3,7 @@ import { Pool } from 'pg';
 import { PG_POOL } from '../database/database.module';
 import { SendMessageDto } from './dto/send-message.dto';
 
-interface Message {
+export interface Message {
   id: string;
   facility_id: string;
   resident_id: string | null;

@@ -3,7 +3,7 @@ import { Pool } from 'pg';
 import { PG_POOL } from '../database/database.module';
 import { TriggerSosDto } from './dto/trigger-sos.dto';
 
-interface EmergencyAlert {
+export interface EmergencyAlert {
   id: string;
   facility_id: string;
   resident_id: string | null;
