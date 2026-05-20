@@ -73,10 +73,6 @@ interface AiModelClient {
   send(command: InvokeModelCommand): Promise<{ body?: Uint8Array }>;
 }
 
-interface ResidentMemoryRecord {
-  memory: string[];
-  updatedAt: string;
-}
 
 interface NormalizedChatRequest {
   message: string;
@@ -422,10 +418,7 @@ residentId: ${residentId}
         body.profile ??
         (isRecord(body.resident) ? body.resident.memory : undefined),
     );
-    const memoryFromStore = residentId
-      ? (this.residentMemory.get(residentId)?.memory ?? [])
-      : [];
-    const memory = Array.from(new Set([...memoryFromStore, ...memoryFromBody]));
+    const memory = Array.from(new Set([...memoryFromBody]));
 
     return {
       message,
@@ -482,6 +475,16 @@ residentId: ${residentId}
   @ApiResponse({ status: 503, description: 'AI service unavailable.' })
   async chat(@Body() body: unknown) {
     const request = this.normalizeChatRequest(body);
+
+    if (this.pool && request.residentId && request.memory.length === 0) {
+      const res = await this.pool.query<Record<string, unknown>>(
+        `SELECT facts FROM ai_resident_memory WHERE resident_id = $1`,
+        [request.residentId],
+      );
+      const stored = (res.rows[0]?.facts as string[]) ?? [];
+      request.memory = stored;
+    }
+
     const aiEnabled = process.env.AI_ENABLED === 'true';
     if (!aiEnabled) {
       this.throwAiUnavailable('ai_disabled');
