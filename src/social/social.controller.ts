@@ -13,6 +13,7 @@ import { PG_POOL } from '../database/database.module';
 import {
   ApiBearerAuth,
   ApiOperation,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
