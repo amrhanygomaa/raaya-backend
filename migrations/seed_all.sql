@@ -148,13 +148,13 @@ ON CONFLICT (id) DO NOTHING;
 -- ═══════════════════════════════════════════════════════════════════════
 
 INSERT INTO vital_thresholds (id, facility_id, vital_type, min_value, max_value, unit) VALUES
-  ('th000000-0000-0000-0000-000000000001', 'facility-demo', 'heart_rate',                60,  100, 'bpm'),
-  ('th000000-0000-0000-0000-000000000002', 'facility-demo', 'blood_pressure_systolic',    90,  140, 'mmHg'),
-  ('th000000-0000-0000-0000-000000000003', 'facility-demo', 'blood_pressure_diastolic',   60,   90, 'mmHg'),
-  ('th000000-0000-0000-0000-000000000004', 'facility-demo', 'temperature',              36.0, 37.5, '°C'),
-  ('th000000-0000-0000-0000-000000000005', 'facility-demo', 'respiratory_rate',           12,   20, 'breaths/min'),
-  ('th000000-0000-0000-0000-000000000006', 'facility-demo', 'oxygen_saturation',          95, NULL, '%'),
-  ('th000000-0000-0000-0000-000000000007', 'facility-demo', 'blood_glucose',              70,  140, 'mg/dL')
+  ('00000000-0000-0000-0000-000000000001', 'facility-demo', 'heart_rate',                60,  100, 'bpm'),
+  ('00000000-0000-0000-0000-000000000002', 'facility-demo', 'blood_pressure_systolic',    90,  140, 'mmHg'),
+  ('00000000-0000-0000-0000-000000000003', 'facility-demo', 'blood_pressure_diastolic',   60,   90, 'mmHg'),
+  ('00000000-0000-0000-0000-000000000004', 'facility-demo', 'temperature',              36.0, 37.5, '°C'),
+  ('00000000-0000-0000-0000-000000000005', 'facility-demo', 'respiratory_rate',           12,   20, 'breaths/min'),
+  ('00000000-0000-0000-0000-000000000006', 'facility-demo', 'oxygen_saturation',          95, NULL, '%'),
+  ('00000000-0000-0000-0000-000000000007', 'facility-demo', 'blood_glucose',              70,  140, 'mg/dL')
 ON CONFLICT (facility_id, vital_type) DO NOTHING;
 
 -- Ahmad – normal reading
@@ -163,7 +163,7 @@ INSERT INTO vital_signs (
   heart_rate, blood_pressure_systolic, blood_pressure_diastolic,
   temperature, respiratory_rate, oxygen_saturation, blood_glucose, notes
 ) VALUES (
-  'vs000000-0000-0000-0000-000000000001',
+  '00000000-0000-0000-0000-000000000001',
   'a1b2c3d4-0000-0000-0000-000000000001',
   'facility-demo', 'nurse-seed', '2025-05-08 08:00:00+03',
   72, 120, 80, 36.8, 16, 98, 95,
@@ -176,7 +176,7 @@ INSERT INTO vital_signs (
   heart_rate, blood_pressure_systolic, blood_pressure_diastolic,
   temperature, respiratory_rate, oxygen_saturation, notes
 ) VALUES (
-  'vs000000-0000-0000-0000-000000000002',
+  '00000000-0000-0000-0000-000000000002',
   'a1b2c3d4-0000-0000-0000-000000000001',
   'facility-demo', 'nurse-seed', '2025-05-08 14:00:00+03',
   110, 135, 85, 37.1, 18, 92,
@@ -189,7 +189,7 @@ INSERT INTO vital_signs (
   heart_rate, blood_pressure_systolic, blood_pressure_diastolic,
   temperature, respiratory_rate, oxygen_saturation
 ) VALUES (
-  'vs000000-0000-0000-0000-000000000003',
+  '00000000-0000-0000-0000-000000000003',
   'a1b2c3d4-0000-0000-0000-000000000002',
   'facility-demo', 'nurse-seed', '2025-05-08 09:00:00+03',
   68, 125, 78, 36.6, 14, 97
@@ -201,10 +201,10 @@ INSERT INTO vital_alerts (
   vital_type, recorded_value, threshold_min, threshold_max,
   severity, status
 ) VALUES
-  ('va000000-0000-0000-0000-000000000001', 'vs000000-0000-0000-0000-000000000002',
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002',
    'a1b2c3d4-0000-0000-0000-000000000001', 'facility-demo',
    'heart_rate', 110, 60, 100, 'warning', 'active'),
-  ('va000000-0000-0000-0000-000000000002', 'vs000000-0000-0000-0000-000000000002',
+  ('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000002',
    'a1b2c3d4-0000-0000-0000-000000000001', 'facility-demo',
    'oxygen_saturation', 92, 95, NULL, 'warning', 'active')
 ON CONFLICT (id) DO NOTHING;
@@ -218,12 +218,12 @@ INSERT INTO complaints (
   category, subject, description,
   status, priority, resolved_by, resolved_at, resolution_notes
 ) VALUES
-  ('cp000000-0000-0000-0000-000000000001', 'a1b2c3d4-0000-0000-0000-000000000001',
+  ('00000000-0000-0000-0000-000000000001', 'a1b2c3d4-0000-0000-0000-000000000001',
    'facility-demo', 'family-khalid',
    'food', 'Meal quality concern', 'Meals not served at consistent temperature',
    'resolved', 'medium', 'admin-seed', '2025-05-06 10:00:00+03',
    'Kitchen team briefed; temperature checks implemented'),
-  ('cp000000-0000-0000-0000-000000000002', 'a1b2c3d4-0000-0000-0000-000000000001',
+  ('00000000-0000-0000-0000-000000000002', 'a1b2c3d4-0000-0000-0000-000000000001',
    'facility-demo', 'family-sara',
    'communication', 'Delayed update on medication change',
    'Family was not notified about a dosage change for 3 days',
@@ -235,11 +235,11 @@ INSERT INTO complaints (
   id, resident_id, facility_id, submitted_by,
   category, subject, description, status, priority
 ) VALUES
-  ('cp000000-0000-0000-0000-000000000003', 'a1b2c3d4-0000-0000-0000-000000000002',
+  ('00000000-0000-0000-0000-000000000003', 'a1b2c3d4-0000-0000-0000-000000000002',
    'facility-demo', 'family-mohammed',
    'care_quality', 'Physical therapy schedule concern',
    'Resident missed two PT sessions last week', 'open', 'high'),
-  ('cp000000-0000-0000-0000-000000000004', 'a1b2c3d4-0000-0000-0000-000000000002',
+  ('00000000-0000-0000-0000-000000000004', 'a1b2c3d4-0000-0000-0000-000000000002',
    'facility-demo', 'family-mohammed',
    'facility', 'Room temperature too cold',
    'Room 205 AC is set too low at night', 'in_progress', 'low')
@@ -329,7 +329,7 @@ INSERT INTO facility_settings (
   medication_reminder_minutes_before, visit_reminder_hours_before,
   alert_push_enabled, timezone, vital_thresholds, updated_by
 ) VALUES (
-  'fs000000-0000-0000-0000-000000000001',
+  '00000000-0000-0000-0000-000000000001',
   'facility-demo',
   30, 24, TRUE, 'Asia/Riyadh',
   '{
