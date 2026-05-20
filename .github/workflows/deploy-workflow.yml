@@ -106,6 +106,16 @@ jobs:
           target: "/home/ec2-user/raaya-backend/"
           strip_components: 1
 
+      - name: Copy migrations to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "migrations/"
+          target: "/home/ec2-user/raaya-backend/"
+          strip_components: 0
+
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -155,6 +165,16 @@ jobs:
                 && echo "✅ Nginx reloaded" \
                 || echo "⚠️ Nginx reload failed — راجع الـ config"
             fi
+
+            # تشغيل Migrations
+            for f in /home/ec2-user/raaya-backend/migrations/*.sql; do
+              echo "▶ Running migration: $(basename $f)"
+              docker exec raaya-api sh -c \
+                "PGPASSWORD=\$DB_PASSWORD psql -h \$DB_HOST -U \$DB_USER -d \$DB_NAME -f /dev/stdin" \
+                < "$f" \
+                && echo "✅ $(basename $f)" \
+                || echo "⚠️ $(basename $f) failed (may already exist)"
+            done
 
             # Health check عبر HTTPS
             sleep 2
