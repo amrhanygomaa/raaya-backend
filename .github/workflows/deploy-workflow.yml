@@ -136,6 +136,9 @@ jobs:
             docker rm   raaya-api 2>/dev/null || true
 
             # Run new container مع CloudWatch logging
+            # The -e flags below override the same keys if also present in
+            # /home/ec2-user/.env; this is intentional so the workflow stays
+            # the source of truth for non-secret config like public URLs.
             docker run -d \
               --name raaya-api \
               --restart unless-stopped \
@@ -144,6 +147,9 @@ jobs:
               -e DB_NAME=raaya \
               -e DB_USER=raaya_admin \
               -e "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" \
+              -e S3_MEDIA_PUBLIC_BASE_URL=https://raaya-demo-media.s3.amazonaws.com \
+              -e VOLUNTEER_PUBLIC_BASE_URL=https://app.helpers-tech.com/v \
+              -e VOLUNTEER_PUBLIC_LINK_TTL_DAYS=30 \
               --log-driver awslogs \
               --log-opt awslogs-region=us-east-1 \
               --log-opt awslogs-group=/raaya/backend \
