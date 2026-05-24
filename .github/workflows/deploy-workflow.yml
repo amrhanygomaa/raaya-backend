@@ -167,10 +167,13 @@ jobs:
             fi
 
             # تشغيل Migrations
+            # NOTE: docker exec needs -i so the SQL file content actually
+            # streams into the container's psql stdin. Without -i, psql sees
+            # an empty stdin, exits 0, and silently skips the migration.
             for f in /home/ec2-user/raaya-backend/migrations/*.sql; do
               echo "▶ Running migration: $(basename $f)"
-              docker exec raaya-api sh -c \
-                "PGPASSWORD=\$DB_PASSWORD psql -h \$DB_HOST -U \$DB_USER -d \$DB_NAME -f /dev/stdin" \
+              docker exec -i raaya-api sh -c \
+                "PGPASSWORD=\$DB_PASSWORD psql -h \$DB_HOST -U \$DB_USER -d \$DB_NAME -v ON_ERROR_STOP=1 -f -" \
                 < "$f" \
                 && echo "✅ $(basename $f)" \
                 || echo "⚠️ $(basename $f) failed (may already exist)"
