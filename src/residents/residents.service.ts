@@ -72,15 +72,59 @@ function rowToResident(row: Record<string, unknown>): Resident {
   };
 }
 
+export interface AuditActor {
+  userId: string;
+  name?: string;
+  roles?: string[];
+}
+
 @Injectable()
 export class ResidentsService {
   private readonly logger = new Logger(ResidentsService.name);
 
   constructor(@Inject(PG_POOL) private readonly pool: Pool) {}
 
+  // ── AUDIT HELPER ───────────────────────────────────────────────────────────
+
+  private async writeAudit(
+    facilityId: string,
+    residentId: string,
+    actor: AuditActor | undefined,
+    action: string,
+    changedFields: Record<string, unknown>,
+  ): Promise<void> {
+    if (!actor) return;
+    try {
+      await this.pool.query(
+        `INSERT INTO resident_audit_log
+           (facility_id, resident_id, actor_id, actor_name, actor_role, action, changed_fields)
+         VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)`,
+        [
+          facilityId,
+          residentId,
+          actor.userId,
+          actor.name ?? actor.userId,
+          actor.roles?.[0] ?? 'unknown',
+          action,
+          JSON.stringify(changedFields ?? {}),
+        ],
+      );
+    } catch (err) {
+      this.logger.warn(
+        `Failed to write audit log for resident ${residentId}: ${
+          (err as Error).message
+        }`,
+      );
+    }
+  }
+
   // ── CREATE ─────────────────────────────────────────────────────────────────
 
-  async create(facilityId: string, dto: CreateResidentDto): Promise<Resident> {
+  async create(
+    facilityId: string,
+    dto: CreateResidentDto,
+    actor?: AuditActor,
+  ): Promise<Resident> {
     const sql = `
       INSERT INTO residents
         (facility_id, first_name, last_name, date_of_birth, gender,
@@ -108,6 +152,22 @@ export class ResidentsService {
     this.logger.log(
       `Created resident ${String(result.rows[0].id)} in facility ${facilityId}`,
     );
+
+    await this.writeAudit(
+      facilityId,
+      result.rows[0].id as string,
+      actor,
+      'created',
+      {
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        gender: dto.gender,
+        roomNumber: dto.roomNumber ?? null,
+        admissionDate: dto.admissionDate,
+        status: dto.status ?? 'active',
+      },
+    );
+
     return rowToResident(result.rows[0]);
   }
 
@@ -154,6 +214,7 @@ export class ResidentsService {
     facilityId: string,
     residentId: string,
     dto: UpdateResidentDto,
+    actor?: AuditActor,
   ): Promise<Resident> {
     // Build a dynamic SET clause from only the provided fields.
     const fieldMap: Record<string, unknown> = {
@@ -206,6 +267,19 @@ export class ResidentsService {
     }
 
     this.logger.log(`Updated resident ${residentId} in facility ${facilityId}`);
+
+    const changedFields: Record<string, unknown> = {};
+    for (const [col, value] of Object.entries(fieldMap)) {
+      if (value !== undefined) changedFields[col] = value;
+    }
+    await this.writeAudit(
+      facilityId,
+      residentId,
+      actor,
+      'updated',
+      changedFields,
+    );
+
     return rowToResident(result.rows[0]);
   }
 
@@ -249,6 +323,7 @@ export class ResidentsService {
     facilityId: string,
     residentId: string,
     dto: UpsertMedicalInfoDto,
+    actor?: AuditActor,
   ): Promise<ResidentMedicalInfo> {
     // Verify resident exists in this facility
     await this.findOne(facilityId, residentId);
@@ -278,6 +353,20 @@ export class ResidentsService {
       Record<string, unknown>
     >(sql, params);
     this.logger.log(`Medical info upserted for resident ${residentId}`);
+
+    await this.writeAudit(
+      facilityId,
+      residentId,
+      actor,
+      'medical_info_updated',
+      {
+        diagnoses: dto.diagnoses ?? null,
+        allergies: dto.allergies ?? null,
+        bloodType: dto.bloodType ?? null,
+        chronicConditions: dto.chronicConditions ?? null,
+      },
+    );
+
     return rowToMedicalInfo(result.rows[0]);
   }
 }

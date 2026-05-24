@@ -12,6 +12,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { Pool, QueryResult } from 'pg';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { PG_POOL } from '../database/database.module';
 import {
   VolunteerProfile,
@@ -535,5 +537,150 @@ export class VolunteersService {
       score: Number(r.score),
       isPending: r.is_pending as boolean,
     }));
+  }
+
+  async createPublicProfileLink(
+    facilityId: string,
+    userId: string,
+  ): Promise<{ url: string; token: string; expiresAt: string }> {
+    // Ensure the volunteer has a profile
+    await this.getProfile(facilityId, userId);
+
+    const token = `${Date.now().toString(36)}${Math.random()
+      .toString(36)
+      .slice(2, 10)}${Math.random().toString(36).slice(2, 10)}`;
+
+    const ttlDays = Number(process.env.VOLUNTEER_PUBLIC_LINK_TTL_DAYS ?? 30);
+    const result = await this.pool.query<Record<string, unknown>>(
+      `INSERT INTO volunteer_public_links (token, user_id, facility_id, expires_at)
+       VALUES ($1, $2, $3, NOW() + ($4 || ' days')::interval)
+       RETURNING token, expires_at`,
+      [token, userId, facilityId, String(ttlDays)],
+    );
+
+    const base = (
+      process.env.VOLUNTEER_PUBLIC_BASE_URL ?? 'https://app.helpers-tech.com/v'
+    ).replace(/\/$/, '');
+    const url = `${base}/${token}`;
+    const expiresAt =
+      (result.rows[0].expires_at as Date)?.toISOString?.() ??
+      (result.rows[0].expires_at as string);
+
+    this.logger.log(`Volunteer public link created: ${userId} → ${token}`);
+    return { url, token, expiresAt };
+  }
+
+  // ── DOCUMENTS (P12) ────────────────────────────────────────────────────────
+
+  private get s3Client(): S3Client {
+    return new S3Client({ region: process.env.AWS_REGION ?? 'us-east-1' });
+  }
+
+  async requestDocumentUpload(
+    facilityId: string,
+    userId: string,
+    body: { documentType: string; fileName: string; contentType: string },
+  ): Promise<{
+    id: string;
+    documentType: string;
+    fileName: string;
+    contentType: string;
+    status: string;
+    uploadUrl: string;
+    s3Key: string;
+  }> {
+    const bucket = process.env.S3_MEDIA_BUCKET ?? 'raaya-demo-media';
+    const prefix = process.env.S3_MEDIA_PREFIX ?? '';
+    const safeName = (body.fileName || 'document').replace(/[^\w.-]/g, '_');
+    const s3Key = [
+      prefix,
+      facilityId,
+      'volunteers',
+      userId,
+      'documents',
+      `${Date.now()}-${safeName}`,
+    ]
+      .filter(Boolean)
+      .join('/');
+
+    const result = await this.pool.query<Record<string, unknown>>(
+      `INSERT INTO volunteer_documents
+        (facility_id, user_id, document_type, file_name, content_type, s3_key, status)
+       VALUES ($1, $2, $3, $4, $5, $6, 'pending')
+       RETURNING *`,
+      [
+        facilityId,
+        userId,
+        body.documentType,
+        body.fileName,
+        body.contentType,
+        s3Key,
+      ],
+    );
+
+    const command = new PutObjectCommand({
+      Bucket: bucket,
+      Key: s3Key,
+      ContentType: body.contentType || 'application/octet-stream',
+    });
+    const uploadUrl = await getSignedUrl(this.s3Client, command, {
+      expiresIn: 900,
+    });
+
+    return {
+      id: result.rows[0].id as string,
+      documentType: result.rows[0].document_type as string,
+      fileName: result.rows[0].file_name as string,
+      contentType: result.rows[0].content_type as string,
+      status: result.rows[0].status as string,
+      s3Key,
+      uploadUrl,
+    };
+  }
+
+  async confirmDocumentUpload(
+    facilityId: string,
+    userId: string,
+    documentId: string,
+  ): Promise<{
+    id: string;
+    documentType: string;
+    fileName: string;
+    contentType: string;
+    status: string;
+    fileUrl: string | null;
+  }> {
+    const result = await this.pool.query<Record<string, unknown>>(
+      `UPDATE volunteer_documents
+       SET status = 'confirmed', confirmed_at = NOW()
+       WHERE id = $1 AND facility_id = $2 AND user_id = $3 AND status = 'pending'
+       RETURNING *`,
+      [documentId, facilityId, userId],
+    );
+    if (result.rows.length === 0) {
+      throw new NotFoundException(
+        'Document upload not found or already confirmed',
+      );
+    }
+
+    const row = result.rows[0];
+    const publicBase = process.env.S3_MEDIA_PUBLIC_BASE_URL;
+    let fileUrl = (row.file_url as string | null) ?? null;
+    if (!fileUrl && publicBase) {
+      fileUrl = `${publicBase.replace(/\/$/, '')}/${row.s3_key as string}`;
+      await this.pool.query(
+        `UPDATE volunteer_documents SET file_url = $1 WHERE id = $2`,
+        [fileUrl, documentId],
+      );
+    }
+
+    return {
+      id: row.id as string,
+      documentType: row.document_type as string,
+      fileName: row.file_name as string,
+      contentType: row.content_type as string,
+      status: row.status as string,
+      fileUrl,
+    };
   }
 }

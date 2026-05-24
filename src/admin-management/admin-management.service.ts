@@ -13,6 +13,8 @@ import {
   AdminUpdateUserAttributesCommand,
   CognitoIdentityProviderClient,
 } from '@aws-sdk/client-cognito-identity-provider';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { FacilitySettings, ManagedUser } from './admin-management.schema';
 import { CreateManagedUserDto } from './dto/create-managed-user.dto';
 import { UpdateManagedUserDto } from './dto/update-managed-user.dto';
@@ -63,6 +65,10 @@ export class AdminManagementService {
   private readonly logger = new Logger(AdminManagementService.name);
   private readonly cognito: CognitoIdentityProviderClient;
   private readonly userPoolId?: string;
+  private readonly s3: S3Client;
+  private readonly bucket: string;
+  private readonly prefix: string;
+  private readonly publicBaseUrl: string | undefined;
 
   constructor(@Inject(PG_POOL) private readonly pool: Pool) {
     this.cognito = new CognitoIdentityProviderClient({
@@ -70,6 +76,87 @@ export class AdminManagementService {
         process.env.COGNITO_REGION ?? process.env.AWS_REGION ?? 'us-east-1',
     });
     this.userPoolId = process.env.COGNITO_USER_POOL_ID;
+    this.s3 = new S3Client({
+      region: process.env.AWS_REGION ?? 'us-east-1',
+    });
+    this.bucket = process.env.S3_MEDIA_BUCKET ?? 'raaya-demo-media';
+    this.prefix = process.env.S3_MEDIA_PREFIX ?? '';
+    this.publicBaseUrl = process.env.S3_MEDIA_PUBLIC_BASE_URL;
+  }
+
+  async requestStaffPhotoUpload(
+    facilityId: string,
+    staffId: string,
+    fileName: string,
+    contentType: string,
+  ): Promise<{ s3Key: string; presignedUrl: string }> {
+    await this.getUserById(facilityId, staffId); // 404 if not in facility
+
+    const safeName = (fileName || 'profile.jpg').replace(/[^\w.-]/g, '_');
+    const s3Key = [
+      this.prefix,
+      facilityId,
+      'users',
+      staffId,
+      'profile',
+      `${Date.now()}-${safeName}`,
+    ]
+      .filter(Boolean)
+      .join('/');
+
+    await this.pool.query(
+      `INSERT INTO managed_users_photo_uploads (facility_id, user_id, s3_key)
+       VALUES ($1, $2, $3)`,
+      [facilityId, staffId, s3Key],
+    );
+
+    const command = new PutObjectCommand({
+      Bucket: this.bucket,
+      Key: s3Key,
+      ContentType: contentType || 'image/jpeg',
+    });
+    const presignedUrl = await getSignedUrl(this.s3, command, {
+      expiresIn: 900,
+    });
+
+    return { s3Key, presignedUrl };
+  }
+
+  async confirmStaffPhotoUpload(
+    facilityId: string,
+    staffId: string,
+    s3Key: string,
+  ): Promise<{ imageUrl: string }> {
+    await this.getUserById(facilityId, staffId);
+
+    const check = await this.pool.query<Record<string, unknown>>(
+      `SELECT id FROM managed_users_photo_uploads
+       WHERE facility_id = $1 AND user_id = $2 AND s3_key = $3 AND status = 'pending'`,
+      [facilityId, staffId, s3Key],
+    );
+    if (check.rows.length === 0) {
+      throw new NotFoundException(
+        'Photo upload not found or already confirmed',
+      );
+    }
+
+    const imageUrl = this.publicBaseUrl
+      ? `${this.publicBaseUrl.replace(/\/$/, '')}/${s3Key}`
+      : s3Key;
+
+    await this.pool.query(
+      `UPDATE managed_users_photo_uploads
+       SET status = 'confirmed', confirmed_at = NOW()
+       WHERE id = $1`,
+      [check.rows[0].id],
+    );
+    await this.pool.query(
+      `UPDATE managed_users SET image_url = $1, updated_at = NOW()
+       WHERE id = $2 AND facility_id = $3`,
+      [imageUrl, staffId, facilityId],
+    );
+
+    return { imageUrl };
   }
 
   async createUser(
@@ -391,6 +478,107 @@ export class AdminManagementService {
             )
           : 0,
       isOnline: false,
+    }));
+  }
+
+  async getSettingsKey(
+    facilityId: string,
+    column: 'emergency_contacts' | 'billing' | 'facility_profile',
+  ): Promise<Record<string, unknown>> {
+    await this.getSettings(facilityId); // ensure row exists
+    const result = await this.pool.query<Record<string, unknown>>(
+      `SELECT ${column} AS value FROM facility_settings WHERE facility_id = $1`,
+      [facilityId],
+    );
+    const raw = result.rows[0]?.value;
+    return raw && typeof raw === 'object'
+      ? (raw as Record<string, unknown>)
+      : {};
+  }
+
+  async setSettingsKey(
+    facilityId: string,
+    column: 'emergency_contacts' | 'billing' | 'facility_profile',
+    value: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    await this.getSettings(facilityId);
+    const result = await this.pool.query<Record<string, unknown>>(
+      `UPDATE facility_settings
+       SET ${column} = $1::jsonb,
+           updated_at = NOW()
+       WHERE facility_id = $2
+       RETURNING ${column} AS value`,
+      [JSON.stringify(value), facilityId],
+    );
+    const raw = result.rows[0]?.value;
+    return raw && typeof raw === 'object'
+      ? (raw as Record<string, unknown>)
+      : {};
+  }
+
+  async getUserById(
+    facilityId: string,
+    userId: string,
+  ): Promise<{
+    id: string;
+    email: string;
+    fullName: string;
+    role: string;
+    status: string;
+    imageUrl: string | null;
+  }> {
+    const result = await this.pool.query<Record<string, unknown>>(
+      `SELECT id, email, full_name, role, status, image_url
+       FROM managed_users
+       WHERE id = $1 AND facility_id = $2`,
+      [userId, facilityId],
+    );
+    if (result.rows.length === 0) {
+      throw new NotFoundException(`Managed user ${userId} not found`);
+    }
+    const row = result.rows[0];
+    return {
+      id: row.id as string,
+      email: row.email as string,
+      fullName: row.full_name as string,
+      role: row.role as string,
+      status: row.status as string,
+      imageUrl: (row.image_url as string | null) ?? null,
+    };
+  }
+
+  async getUserReviews(
+    facilityId: string,
+    userId: string,
+  ): Promise<
+    {
+      id: string;
+      fromName: string;
+      fromRole: string;
+      rating: number;
+      comment: string;
+      createdAt: string;
+    }[]
+  > {
+    // verify staff belongs to the caller facility
+    await this.getUserById(facilityId, userId);
+
+    const result = await this.pool.query<Record<string, unknown>>(
+      `SELECT id, from_name, from_role, rating, comment, created_at
+       FROM staff_reviews
+       WHERE facility_id = $1 AND staff_id = $2
+       ORDER BY created_at DESC
+       LIMIT 200`,
+      [facilityId, userId],
+    );
+    return result.rows.map((row) => ({
+      id: row.id as string,
+      fromName: row.from_name as string,
+      fromRole: row.from_role as string,
+      rating: Number(row.rating ?? 0),
+      comment: (row.comment as string) ?? '',
+      createdAt:
+        (row.created_at as Date)?.toISOString?.() ?? (row.created_at as string),
     }));
   }
 }

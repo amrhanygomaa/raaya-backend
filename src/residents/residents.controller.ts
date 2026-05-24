@@ -16,6 +16,7 @@
 import {
   Controller,
   Get,
+  Inject,
   Post,
   Put,
   Patch,
@@ -25,6 +26,8 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
+import { Pool } from 'pg';
+import { PG_POOL } from '../database/database.module';
 import {
   ApiTags,
   ApiBearerAuth,
@@ -54,7 +57,10 @@ interface AuthenticatedRequest {
 @ApiBearerAuth()
 @Controller('residents')
 export class ResidentsController {
-  constructor(private readonly residentsService: ResidentsService) {}
+  constructor(
+    private readonly residentsService: ResidentsService,
+    @Inject(PG_POOL) private readonly pool: Pool,
+  ) {}
 
   // ── POST /residents ────────────────────────────────────────────────────────
 
@@ -69,7 +75,11 @@ export class ResidentsController {
     @Request() req: AuthenticatedRequest,
     @Body() dto: CreateResidentDto,
   ) {
-    return this.residentsService.create(req.user.facilityId, dto);
+    return this.residentsService.create(req.user.facilityId, dto, {
+      userId: req.user.userId,
+      name: req.user.email,
+      roles: req.user.roles,
+    });
   }
 
   // ── GET /residents ─────────────────────────────────────────────────────────
@@ -117,7 +127,11 @@ export class ResidentsController {
     @Param('id') id: string,
     @Body() dto: UpdateResidentDto,
   ) {
-    return this.residentsService.update(req.user.facilityId, id, dto);
+    return this.residentsService.update(req.user.facilityId, id, dto, {
+      userId: req.user.userId,
+      name: req.user.email,
+      roles: req.user.roles,
+    });
   }
 
   // ── GET /residents/:id/medical-info ─────────────────────────────────────────
@@ -152,6 +166,51 @@ export class ResidentsController {
       req.user.facilityId,
       id,
       dto,
+      {
+        userId: req.user.userId,
+        name: req.user.email,
+        roles: req.user.roles,
+      },
     );
+  }
+
+  // ── GET /residents/:id/audit-trail ──────────────────────────────────────────
+
+  @Get(':id/audit-trail')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({
+    summary: 'List recent audit log entries for a resident',
+    description:
+      'Returns up to 200 most recent rows from resident_audit_log for the given resident. ' +
+      'Verifies the resident belongs to the caller facility first.',
+  })
+  @ApiParam({ name: 'id', description: 'Resident UUID' })
+  @ApiResponse({ status: 200, description: 'Array of audit entries.' })
+  async getAuditTrail(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
+    const check = await this.pool.query<Record<string, unknown>>(
+      `SELECT id FROM residents WHERE id = $1 AND facility_id = $2`,
+      [id, req.user.facilityId],
+    );
+    if (check.rows.length === 0) return [];
+
+    const result = await this.pool.query<Record<string, unknown>>(
+      `SELECT id, action, actor_name, actor_role, changed_fields, at
+       FROM resident_audit_log
+       WHERE resident_id = $1 AND facility_id = $2
+       ORDER BY at DESC
+       LIMIT 200`,
+      [id, req.user.facilityId],
+    );
+    return result.rows.map((row) => ({
+      id: row.id as string,
+      action: row.action as string,
+      actorName: row.actor_name as string,
+      actorRole: row.actor_role as string,
+      changedFields: row.changed_fields ?? {},
+      at: (row.at as Date)?.toISOString?.() ?? (row.at as string),
+    }));
   }
 }

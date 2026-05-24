@@ -150,6 +150,137 @@ export class AdminManagementController {
     );
   }
 
+  @Get('users/:id')
+  @ApiOperation({ summary: 'Get a managed user details' })
+  @ApiParam({ name: 'id', description: 'managed_users UUID' })
+  @ApiResponse({ status: 200, description: 'Managed user details.' })
+  @ApiResponse({ status: 404, description: 'Managed user not found.' })
+  async getUserById(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
+    return this.adminManagementService.getUserById(req.user.facilityId, id);
+  }
+
+  @Post('users/:id/photo/upload')
+  @ApiOperation({
+    summary: 'Request a presigned S3 URL for a staff profile photo',
+  })
+  @ApiParam({ name: 'id', description: 'managed_users UUID' })
+  @ApiResponse({ status: 201, description: 'Presigned URL + s3Key.' })
+  async requestStaffPhoto(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() body: { fileName?: string; contentType?: string },
+  ) {
+    return this.adminManagementService.requestStaffPhotoUpload(
+      req.user.facilityId,
+      id,
+      body.fileName ?? 'profile.jpg',
+      body.contentType ?? 'image/jpeg',
+    );
+  }
+
+  @Patch('users/:id/photo/confirm')
+  @ApiOperation({
+    summary: 'Confirm a staff photo upload and persist the URL',
+  })
+  @ApiParam({ name: 'id', description: 'managed_users UUID' })
+  @ApiResponse({ status: 200, description: 'Confirmed photo URL.' })
+  async confirmStaffPhoto(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() body: { s3Key: string },
+  ) {
+    return this.adminManagementService.confirmStaffPhotoUpload(
+      req.user.facilityId,
+      id,
+      body.s3Key,
+    );
+  }
+
+  @Get('users/:id/reviews')
+  @ApiOperation({
+    summary: 'List reviews left for a managed user',
+    description:
+      'Reviews are stored in `staff_reviews`. For Volunteer accounts, the volunteer module owns its own reviews.',
+  })
+  @ApiParam({ name: 'id', description: 'managed_users UUID' })
+  @ApiResponse({ status: 200, description: 'Array of staff reviews.' })
+  async getUserReviews(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
+    return this.adminManagementService.getUserReviews(req.user.facilityId, id);
+  }
+
+  @Get('settings/emergency-contacts')
+  @ApiOperation({ summary: 'Get facility emergency contacts' })
+  @ApiResponse({ status: 200, description: 'EmergencyContactsSettings JSON.' })
+  async getEmergencyContacts(@Request() req: AuthenticatedRequest) {
+    return this.adminManagementService.getSettingsKey(
+      req.user.facilityId,
+      'emergency_contacts',
+    );
+  }
+
+  @Put('settings/emergency-contacts')
+  @ApiOperation({ summary: 'Update facility emergency contacts' })
+  async setEmergencyContacts(
+    @Request() req: AuthenticatedRequest,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.adminManagementService.setSettingsKey(
+      req.user.facilityId,
+      'emergency_contacts',
+      body,
+    );
+  }
+
+  @Get('settings/billing')
+  @ApiOperation({ summary: 'Get facility billing/payment details' })
+  async getBilling(@Request() req: AuthenticatedRequest) {
+    return this.adminManagementService.getSettingsKey(
+      req.user.facilityId,
+      'billing',
+    );
+  }
+
+  @Put('settings/billing')
+  @ApiOperation({ summary: 'Update facility billing/payment details' })
+  async setBilling(
+    @Request() req: AuthenticatedRequest,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.adminManagementService.setSettingsKey(
+      req.user.facilityId,
+      'billing',
+      body,
+    );
+  }
+
+  @Get('settings/facility-profile')
+  @ApiOperation({ summary: 'Get facility profile (name/address/phone/...)' })
+  async getFacilityProfile(@Request() req: AuthenticatedRequest) {
+    return this.adminManagementService.getSettingsKey(
+      req.user.facilityId,
+      'facility_profile',
+    );
+  }
+
+  @Put('settings/facility-profile')
+  @ApiOperation({ summary: 'Update facility profile' })
+  async setFacilityProfile(
+    @Request() req: AuthenticatedRequest,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.adminManagementService.setSettingsKey(
+      req.user.facilityId,
+      'facility_profile',
+      body,
+    );
+  }
+
   @Get('staff-performance')
   @ApiOperation({
     summary: 'Get staff performance metrics',

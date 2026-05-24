@@ -229,4 +229,75 @@ export class VolunteersController {
       req.user.userId,
     );
   }
+
+  @Post('documents/upload')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({
+    summary: 'Request a presigned S3 URL to upload a volunteer document',
+    description:
+      'Creates a `volunteer_documents` row in `pending` state and returns a ' +
+      '15-min PUT URL. Client uploads bytes to S3 then calls PATCH `:id/confirm`.',
+  })
+  @ApiResponse({ status: 201, description: 'Presigned URL + document record.' })
+  async requestDocumentUpload(
+    @Request() req: AuthenticatedRequest,
+    @Body()
+    body: { documentType: string; fileName: string; contentType: string },
+  ) {
+    return this.volunteersService.requestDocumentUpload(
+      req.user.facilityId,
+      req.user.userId,
+      body,
+    );
+  }
+
+  @Patch('documents/:id/confirm')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({
+    summary: 'Confirm a volunteer document upload is complete',
+  })
+  @ApiParam({ name: 'id', description: 'volunteer_documents UUID' })
+  @ApiResponse({ status: 200, description: 'Confirmed document.' })
+  @ApiResponse({
+    status: 404,
+    description: 'Document not found or already confirmed.',
+  })
+  async confirmDocumentUpload(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
+    return this.volunteersService.confirmDocumentUpload(
+      req.user.facilityId,
+      req.user.userId,
+      id,
+    );
+  }
+
+  @Post('profile/public-link')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({
+    summary:
+      'Generate a tokenized public-share URL for the caller volunteer profile',
+    description:
+      'TTL is controlled by env `VOLUNTEER_PUBLIC_LINK_TTL_DAYS` (default 30 days). ' +
+      'Base URL is `VOLUNTEER_PUBLIC_BASE_URL` (default https://app.helpers-tech.com/v).',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Generated URL with expiry.',
+    schema: {
+      type: 'object',
+      properties: {
+        url: { type: 'string' },
+        token: { type: 'string' },
+        expiresAt: { type: 'string', format: 'date-time' },
+      },
+    },
+  })
+  async createPublicLink(@Request() req: AuthenticatedRequest) {
+    return this.volunteersService.createPublicProfileLink(
+      req.user.facilityId,
+      req.user.userId,
+    );
+  }
 }

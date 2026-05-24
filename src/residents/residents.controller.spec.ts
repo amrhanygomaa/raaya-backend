@@ -58,6 +58,12 @@ describe('ResidentsController', () => {
             update: jest.fn().mockResolvedValue(mockResident),
           },
         },
+        {
+          provide: 'PG_POOL',
+          useValue: {
+            query: jest.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+          },
+        },
       ],
     }).compile();
 
@@ -79,7 +85,11 @@ describe('ResidentsController', () => {
 
       const result = await controller.create(mockRequest, dto);
 
-      expect(service.create).toHaveBeenCalledWith(FACILITY_ID, dto);
+      expect(service.create).toHaveBeenCalledWith(
+        FACILITY_ID,
+        dto,
+        expect.objectContaining({ userId: 'user-1' }),
+      );
       expect(result.id).toBe(RESIDENT_ID);
     });
   });
@@ -128,6 +138,7 @@ describe('ResidentsController', () => {
         FACILITY_ID,
         RESIDENT_ID,
         dto,
+        expect.objectContaining({ userId: 'user-1' }),
       );
       expect(result.id).toBe(RESIDENT_ID);
     });

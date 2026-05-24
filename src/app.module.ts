@@ -34,6 +34,10 @@ import { FamilyMembersModule } from './family-members/family-members.module';
 import { EmergencyModule } from './emergency/emergency.module';
 import { MessagesModule } from './messages/messages.module';
 import { GatewayModule } from './gateway/gateway.module';
+import { VideoCallsModule } from './video-calls/video-calls.module';
+import { UserProgressModule } from './user-progress/user-progress.module';
+import { UserPreferencesModule } from './user-preferences/user-preferences.module';
+import { FacilitiesModule } from './facilities/facilities.module';
 
 import { UsersController } from './users/users.controller';
 import { RolesGuard } from './auth/roles.guard';
@@ -71,6 +75,10 @@ import { RolesGuard } from './auth/roles.guard';
     EmergencyModule,
     MessagesModule,
     GatewayModule,
+    VideoCallsModule,
+    UserProgressModule,
+    UserPreferencesModule,
+    FacilitiesModule,
   ],
 
   controllers: [AppController, UsersController],
