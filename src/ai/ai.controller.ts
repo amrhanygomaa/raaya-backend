@@ -73,7 +73,6 @@ interface AiModelClient {
   send(command: InvokeModelCommand): Promise<{ body?: Uint8Array }>;
 }
 
-
 interface NormalizedChatRequest {
   message: string;
   residentName: string;

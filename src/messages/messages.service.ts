@@ -29,7 +29,14 @@ export class MessagesService {
       `INSERT INTO messages (facility_id, resident_id, sender_id, sender_role, recipient_id, body)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [facilityId, dto.residentId ?? null, senderId, senderRole, dto.recipientId, dto.body],
+      [
+        facilityId,
+        dto.residentId ?? null,
+        senderId,
+        senderRole,
+        dto.recipientId,
+        dto.body,
+      ],
     );
     return res.rows[0];
   }
@@ -67,7 +74,11 @@ export class MessagesService {
     return res.rows;
   }
 
-  async markRead(facilityId: string, recipientId: string, senderId: string): Promise<void> {
+  async markRead(
+    facilityId: string,
+    recipientId: string,
+    senderId: string,
+  ): Promise<void> {
     await this.pool.query(
       `UPDATE messages
        SET is_read = TRUE

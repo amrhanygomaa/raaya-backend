@@ -124,7 +124,9 @@ export class NotificationsController {
 
   @Post('push-tokens')
   @UseGuards(AuthGuard('jwt'))
-  @ApiOperation({ summary: 'Register a FCM/APNS push token for the current user' })
+  @ApiOperation({
+    summary: 'Register a FCM/APNS push token for the current user',
+  })
   @ApiResponse({ status: 201, description: 'Token registered.' })
   async registerPushToken(
     @Request() req: AuthenticatedRequest,
@@ -132,7 +134,9 @@ export class NotificationsController {
   ) {
     const { token, platform } = body;
     if (!token || !platform || !['ios', 'android'].includes(platform)) {
-      throw new BadRequestException('token and platform (ios|android) are required');
+      throw new BadRequestException(
+        'token and platform (ios|android) are required',
+      );
     }
     await this.pool.query(
       `INSERT INTO push_tokens (facility_id, user_id, token, platform, updated_at)

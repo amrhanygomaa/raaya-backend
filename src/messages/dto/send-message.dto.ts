@@ -1,5 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
 
 export class SendMessageDto {
   @ApiProperty({ example: 'مرحباً، كيف حال والدك اليوم؟' })
@@ -8,7 +14,10 @@ export class SendMessageDto {
   @MaxLength(2000)
   body: string;
 
-  @ApiProperty({ example: 'specialist-user-id', description: 'Cognito sub of recipient' })
+  @ApiProperty({
+    example: 'specialist-user-id',
+    description: 'Cognito sub of recipient',
+  })
   @IsString()
   @IsNotEmpty()
   recipientId: string;

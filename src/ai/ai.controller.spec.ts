@@ -57,18 +57,21 @@ describe('AiController', () => {
     it('stores resident memory and retrieves it', async () => {
       const storedFacts: string[] = [];
       const mockPool = {
-        query: jest.fn().mockImplementation((sql: string, params: unknown[]) => {
-          if (/^INSERT/i.test(sql)) {
-            const parsed = JSON.parse(params[1] as string) as string[];
-            storedFacts.splice(0, storedFacts.length, ...parsed);
-            return Promise.resolve({ rows: [] });
-          }
-          return Promise.resolve({
-            rows: storedFacts.length > 0
-              ? [{ facts: storedFacts, updated_at: new Date() }]
-              : [],
-          });
-        }),
+        query: jest
+          .fn()
+          .mockImplementation((sql: string, params: unknown[]) => {
+            if (/^INSERT/i.test(sql)) {
+              const parsed = JSON.parse(params[1] as string) as string[];
+              storedFacts.splice(0, storedFacts.length, ...parsed);
+              return Promise.resolve({ rows: [] });
+            }
+            return Promise.resolve({
+              rows:
+                storedFacts.length > 0
+                  ? [{ facts: storedFacts, updated_at: new Date() }]
+                  : [],
+            });
+          }),
       };
 
       const controller = new AiController(

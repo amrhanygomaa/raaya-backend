@@ -26,14 +26,19 @@ import { PG_POOL } from '../database/database.module';
   namespace: '/realtime',
   transports: ['websocket', 'polling'],
 })
-export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class RealtimeGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server: Server;
 
   // facilityId → Set<socketId>
   private readonly facilityRooms = new Map<string, Set<string>>();
   // socketId → { facilityId, userId }
-  private readonly socketMeta = new Map<string, { facilityId: string; userId: string }>();
+  private readonly socketMeta = new Map<
+    string,
+    { facilityId: string; userId: string }
+  >();
 
   constructor(@Optional() @Inject(PG_POOL) private readonly pool?: Pool) {}
 
@@ -59,7 +64,9 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     // وlـ room الخاص بيه لو محتاجين نبعتله رسالة مباشرة
     if (userId) void client.join(`user:${userId}`);
 
-    console.log(`[WS] connect  ${client.id} facility=${facilityId} user=${userId}`);
+    console.log(
+      `[WS] connect  ${client.id} facility=${facilityId} user=${userId}`,
+    );
   }
 
   handleDisconnect(client: Socket) {

@@ -245,6 +245,139 @@ export class AuthController {
     }
   }
 
+  @Post('register-admin')
+  @ApiOperation({
+    summary: 'Register the first Admin for a new facility (no JWT required)',
+    description:
+      'Creates an Admin Cognito user and links them to a facilityId. ' +
+      'Requires a setup secret (ADMIN_REGISTRATION_SECRET env var) to prevent abuse.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['email', 'password', 'name', 'facilityId', 'setupSecret'],
+      properties: {
+        email: { type: 'string', example: 'admin@mycare.demo' },
+        password: { type: 'string', example: 'Password123!' },
+        name: { type: 'string', example: 'أحمد المدير' },
+        facilityId: { type: 'string', example: 'mycare-facility-001' },
+        facilityName: { type: 'string', example: 'دار رعاية الأمل' },
+        setupSecret: {
+          type: 'string',
+          description: 'Must match ADMIN_REGISTRATION_SECRET env var',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Admin account created.' })
+  @ApiResponse({ status: 401, description: 'Invalid setup secret.' })
+  @ApiResponse({ status: 409, description: 'Email already exists.' })
+  async registerAdmin(@Body() body: Record<string, unknown>) {
+    const userPoolId = process.env.COGNITO_USER_POOL_ID;
+    const clientId = process.env.COGNITO_CLIENT_ID;
+    const adminSecret = process.env.ADMIN_REGISTRATION_SECRET;
+
+    if (!userPoolId || !clientId) {
+      throw new InternalServerErrorException('Cognito is not configured');
+    }
+
+    // التحقق من الـ setup secret لمنع الإساءة
+    const providedSecret = getBodyString(body, 'setupSecret');
+    if (!adminSecret || !providedSecret || providedSecret !== adminSecret) {
+      throw new UnauthorizedException('Invalid setup secret');
+    }
+
+    const email = getBodyString(body, 'email');
+    const password = getBodyString(body, 'password');
+    const name = getBodyString(body, 'name');
+    const facilityId = getBodyString(body, 'facilityId');
+    const facilityName = getBodyString(body, 'facilityName');
+
+    if (!email || !password || !name || !facilityId) {
+      throw new BadRequestException(
+        'email, password, name, facilityId are required',
+      );
+    }
+    if (password.length < 8) {
+      throw new BadRequestException('Password must be at least 8 characters');
+    }
+
+    const secretHash = buildSecretHash(
+      email,
+      clientId,
+      process.env.COGNITO_CLIENT_SECRET,
+    );
+
+    try {
+      await this.cognito.send(
+        new SignUpCommand({
+          ClientId: clientId,
+          Username: email,
+          Password: password,
+          ...(secretHash ? { SecretHash: secretHash } : {}),
+          UserAttributes: [
+            { Name: 'email', Value: email },
+            { Name: 'name', Value: name },
+            { Name: 'custom:role', Value: 'Admin' },
+            { Name: 'custom:facilityId', Value: facilityId },
+            ...(facilityName
+              ? [{ Name: 'custom:facilityName', Value: facilityName }]
+              : []),
+          ],
+        }),
+      );
+
+      await this.cognito.send(
+        new AdminConfirmSignUpCommand({
+          UserPoolId: userPoolId,
+          Username: email,
+        }),
+      );
+
+      await this.cognito
+        .send(
+          new AdminUpdateUserAttributesCommand({
+            UserPoolId: userPoolId,
+            Username: email,
+            UserAttributes: [{ Name: 'email_verified', Value: 'true' }],
+          }),
+        )
+        .catch(() => undefined);
+
+      await this.cognito
+        .send(
+          new AdminAddUserToGroupCommand({
+            UserPoolId: userPoolId,
+            Username: email,
+            GroupName: 'Admin',
+          }),
+        )
+        .catch(() => undefined);
+
+      return {
+        status: 'ok',
+        email,
+        role: 'Admin',
+        facilityId,
+        message: 'Admin account created. You can sign in now.',
+      };
+    } catch (error: unknown) {
+      const err = error as { name?: string; message?: string };
+      if (err.name === 'UsernameExistsException') {
+        throw new ConflictException('Email already exists');
+      }
+      if (err.name === 'InvalidPasswordException') {
+        throw new BadRequestException(
+          err.message ?? 'Password does not meet policy',
+        );
+      }
+      console.error('[Auth][register-admin] failed:', err);
+      throw new InternalServerErrorException(
+        err.message ?? 'Registration failed',
+      );
+    }
+  }
+
   @Post('login')
   @ApiOperation({
     summary: 'Login through AWS Cognito and return a JWT for the mobile app',

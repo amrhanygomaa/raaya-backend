@@ -43,9 +43,15 @@ export class EmergencyController {
     @Request() req: AuthenticatedRequest,
     @Body() dto: TriggerSosDto,
   ) {
-    const alert = await this.emergencyService.triggerSos(req.user.facilityId, dto);
+    const alert = await this.emergencyService.triggerSos(
+      req.user.facilityId,
+      dto,
+    );
     // بث فوري لكل المتصلين في الـ facility
-    this.gateway.broadcastSos(req.user.facilityId, alert as unknown as Record<string, unknown>);
+    this.gateway.broadcastSos(
+      req.user.facilityId,
+      alert as unknown as Record<string, unknown>,
+    );
     return alert;
   }
 
@@ -64,17 +70,21 @@ export class EmergencyController {
     @Request() req: AuthenticatedRequest,
     @Query('limit') limit?: string,
   ) {
-    return this.emergencyService.findAll(req.user.facilityId, limit ? parseInt(limit, 10) : 50);
+    return this.emergencyService.findAll(
+      req.user.facilityId,
+      limit ? parseInt(limit, 10) : 50,
+    );
   }
 
   @Patch(':id/resolve')
   @ApiOperation({ summary: 'Resolve an emergency alert' })
   @ApiParam({ name: 'id', description: 'Alert UUID' })
   @ApiResponse({ status: 200, description: 'Alert resolved.' })
-  async resolve(
-    @Request() req: AuthenticatedRequest,
-    @Param('id') id: string,
-  ) {
-    return this.emergencyService.resolve(req.user.facilityId, id, req.user.userId);
+  async resolve(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
+    return this.emergencyService.resolve(
+      req.user.facilityId,
+      id,
+      req.user.userId,
+    );
   }
 }

@@ -281,4 +281,56 @@ export class SocialService {
       },
     ];
   }
+
+  async getAssessmentHistory(
+    facilityId: string,
+    residentId?: string,
+  ): Promise<object[]> {
+    const params: unknown[] = [facilityId];
+    const residentFilter = residentId ? `AND resident_id = $2` : '';
+    if (residentId) params.push(residentId);
+
+    const result = await this.pool.query<Record<string, unknown>>(
+      `SELECT id, resident_id, scores, needs_intervention, notes, created_at
+       FROM social_assessments
+       WHERE facility_id = $1 ${residentFilter}
+       ORDER BY created_at DESC
+       LIMIT 20`,
+      params,
+    );
+
+    const rows = result.rows;
+
+    return rows.map((row, idx) => {
+      const scores = (row.scores as Record<string, number>) ?? {};
+      const values = Object.values(scores).filter((v) => typeof v === 'number');
+      const total = values.length * 10;
+      const scoreSum = values.reduce((a, b) => a + b, 0);
+
+      // حساب الاتجاه بالمقارنة مع السجل التالي (الأقدم)
+      let trend = 'stable';
+      if (idx < rows.length - 1) {
+        const prevScores =
+          (rows[idx + 1].scores as Record<string, number>) ?? {};
+        const prevValues = Object.values(prevScores).filter(
+          (v) => typeof v === 'number',
+        );
+        const prevSum = prevValues.reduce((a, b) => a + b, 0);
+        if (scoreSum > prevSum) trend = 'up';
+        else if (scoreSum < prevSum) trend = 'down';
+      }
+
+      const createdAt = row.created_at as Date;
+      return {
+        id: row.id,
+        residentId: row.resident_id,
+        date: createdAt?.toISOString?.()?.slice(0, 10) ?? '',
+        score: scoreSum,
+        total: total > 0 ? String(total) : '100',
+        trend,
+        needsIntervention: row.needs_intervention,
+        notes: row.notes,
+      };
+    });
+  }
 }

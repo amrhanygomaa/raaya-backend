@@ -33,14 +33,20 @@ describe('JobsController', () => {
 
   it('rejects jobs without the configured secret', () => {
     const controller = new JobsController();
-    expect(() => controller.runMedicationReminder(undefined)).toThrow(UnauthorizedException);
-    expect(() => controller.runMedicationReminder('wrong-secret')).toThrow(UnauthorizedException);
+    expect(() => controller.runMedicationReminder(undefined)).toThrow(
+      UnauthorizedException,
+    );
+    expect(() => controller.runMedicationReminder('wrong-secret')).toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('rejects jobs if JOB_SECRET is not configured', () => {
     delete process.env.JOB_SECRET;
     const controller = new JobsController();
-    expect(() => controller.runMedicationReminder(undefined)).toThrow(UnauthorizedException);
+    expect(() => controller.runMedicationReminder(undefined)).toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('accepts medication reminder jobs with the configured secret', () => {

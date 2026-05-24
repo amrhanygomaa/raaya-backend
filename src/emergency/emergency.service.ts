@@ -21,13 +21,22 @@ export interface EmergencyAlert {
 export class EmergencyService {
   constructor(@Inject(PG_POOL) private readonly pool: Pool) {}
 
-  async triggerSos(facilityId: string, dto: TriggerSosDto): Promise<EmergencyAlert> {
+  async triggerSos(
+    facilityId: string,
+    dto: TriggerSosDto,
+  ): Promise<EmergencyAlert> {
     const res = await this.pool.query<EmergencyAlert>(
       `INSERT INTO emergency_alerts
          (facility_id, resident_id, triggered_by, alert_type, status, location, notes)
        VALUES ($1, $2, $3, 'sos', 'active', $4, $5)
        RETURNING *`,
-      [facilityId, dto.residentId ?? null, dto.triggeredBy, dto.location ?? null, dto.notes ?? null],
+      [
+        facilityId,
+        dto.residentId ?? null,
+        dto.triggeredBy,
+        dto.location ?? null,
+        dto.notes ?? null,
+      ],
     );
     return res.rows[0];
   }
@@ -53,7 +62,11 @@ export class EmergencyService {
     return res.rows;
   }
 
-  async resolve(facilityId: string, alertId: string, resolvedBy: string): Promise<EmergencyAlert> {
+  async resolve(
+    facilityId: string,
+    alertId: string,
+    resolvedBy: string,
+  ): Promise<EmergencyAlert> {
     const res = await this.pool.query<EmergencyAlert>(
       `UPDATE emergency_alerts
        SET status = 'resolved', resolved_by = $3, resolved_at = NOW()
