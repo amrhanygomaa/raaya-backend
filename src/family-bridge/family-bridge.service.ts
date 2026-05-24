@@ -244,6 +244,28 @@ export class FamilyBridgeService {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  //  MEDIA – DELETE
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  async deleteMedia(
+    facilityId: string,
+    mediaId: string,
+  ): Promise<{ deleted: true }> {
+    const result = await this.pool.query(
+      `DELETE FROM media_items
+       WHERE id = $1 AND facility_id = $2`,
+      [mediaId, facilityId],
+    );
+    if ((result.rowCount ?? 0) === 0) {
+      throw new NotFoundException(
+        `Media ${mediaId} not found in your facility`,
+      );
+    }
+    this.logger.log(`Media deleted: ${mediaId}`);
+    return { deleted: true };
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  VISITS – BOOK
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 

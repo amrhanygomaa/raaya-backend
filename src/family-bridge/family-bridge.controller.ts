@@ -18,6 +18,7 @@
 
 import {
   Controller,
+  Delete,
   Get,
   Post,
   Patch,
@@ -105,6 +106,22 @@ export class FamilyBridgeController {
     @Body() dto: ConfirmMediaDto,
   ) {
     return this.familyBridgeService.confirmUpload(req.user.facilityId, id, dto);
+  }
+
+  @Delete('media/:id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({
+    summary:
+      'Delete a media item by ID (admin/uploader scoped to the facility)',
+  })
+  @ApiParam({ name: 'id', description: 'Media item UUID' })
+  @ApiResponse({ status: 200, description: 'Media deleted.' })
+  @ApiResponse({ status: 404, description: 'Media not found.' })
+  async deleteMedia(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
+    return this.familyBridgeService.deleteMedia(req.user.facilityId, id);
   }
 
   @Get('media')
