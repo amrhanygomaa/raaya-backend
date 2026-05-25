@@ -15,6 +15,14 @@ export interface Message {
   created_at: string;
 }
 
+export interface ThreadSummary {
+  otherUserId: string;
+  otherUserName: string;
+  otherUserRole: string;
+  lastMessage: Message;
+  unreadCount: number;
+}
+
 @Injectable()
 export class MessagesService {
   constructor(@Inject(PG_POOL) private readonly pool: Pool) {}
@@ -63,15 +71,82 @@ export class MessagesService {
     return res.rows.reverse();
   }
 
-  async getInbox(facilityId: string, userId: string): Promise<Message[]> {
-    const res = await this.pool.query<Message>(
-      `SELECT DISTINCT ON (sender_id) *
-       FROM messages
-       WHERE facility_id = $1 AND recipient_id = $2
-       ORDER BY sender_id, created_at DESC`,
+  async getInbox(
+    facilityId: string,
+    userId: string,
+  ): Promise<ThreadSummary[]> {
+    const res = await this.pool.query<{
+      other_user_id: string;
+      other_user_name: string | null;
+      other_user_role: string | null;
+      last_message_id: string;
+      last_resident_id: string | null;
+      last_sender_id: string;
+      last_sender_role: string;
+      last_recipient_id: string;
+      last_body: string;
+      last_is_read: boolean;
+      last_created_at: string;
+      unread_count: string;
+    }>(
+      `WITH pairs AS (
+         SELECT
+           CASE WHEN sender_id = $2 THEN recipient_id ELSE sender_id END AS other_user_id,
+           m.*
+         FROM messages m
+         WHERE facility_id = $1
+           AND (sender_id = $2 OR recipient_id = $2)
+       ),
+       latest AS (
+         SELECT DISTINCT ON (other_user_id)
+           other_user_id,
+           id            AS last_message_id,
+           resident_id   AS last_resident_id,
+           sender_id     AS last_sender_id,
+           sender_role   AS last_sender_role,
+           recipient_id  AS last_recipient_id,
+           body          AS last_body,
+           is_read       AS last_is_read,
+           created_at    AS last_created_at
+         FROM pairs
+         ORDER BY other_user_id, created_at DESC
+       ),
+       unread AS (
+         SELECT sender_id AS other_user_id, COUNT(*)::text AS unread_count
+         FROM messages
+         WHERE facility_id = $1 AND recipient_id = $2 AND is_read = FALSE
+         GROUP BY sender_id
+       )
+       SELECT
+         l.*,
+         u.full_name AS other_user_name,
+         u.role      AS other_user_role,
+         COALESCE(un.unread_count, '0') AS unread_count
+       FROM latest l
+       LEFT JOIN managed_users u
+         ON u.cognito_sub = l.other_user_id AND u.facility_id = $1
+       LEFT JOIN unread un ON un.other_user_id = l.other_user_id
+       ORDER BY l.last_created_at DESC`,
       [facilityId, userId],
     );
-    return res.rows;
+
+    return res.rows.map((r) => ({
+      otherUserId: r.other_user_id,
+      otherUserName: r.other_user_name ?? '',
+      otherUserRole: r.other_user_role ?? '',
+      lastMessage: {
+        id: r.last_message_id,
+        facility_id: facilityId,
+        resident_id: r.last_resident_id,
+        sender_id: r.last_sender_id,
+        sender_role: r.last_sender_role,
+        recipient_id: r.last_recipient_id,
+        body: r.last_body,
+        is_read: r.last_is_read,
+        created_at: r.last_created_at,
+      },
+      unreadCount: parseInt(r.unread_count, 10) || 0,
+    }));
   }
 
   async markRead(
