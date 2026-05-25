@@ -2,13 +2,19 @@ import {
   Controller,
   Post,
   Headers,
+  Inject,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Pool } from 'pg';
+import { PG_POOL } from '../database/database.module';
 
 const isAiEnabled = (): boolean => process.env.AI_ENABLED === 'true';
 
 @Controller('jobs')
 export class JobsController {
+  constructor(@Optional() @Inject(PG_POOL) private readonly pool?: Pool) {}
+
   private assertJobSecret(secret: string | undefined): void {
     const expectedSecret = process.env.JOB_SECRET;
     if (!expectedSecret || secret !== expectedSecret) {
@@ -67,6 +73,37 @@ export class JobsController {
       job: 'weekly-ai-summary',
       timestamp: new Date().toISOString(),
       residentId,
+    };
+  }
+
+  @Post('volunteer-public-links/cleanup')
+  async cleanupVolunteerPublicLinks(
+    @Headers('x-job-secret') secret: string | undefined,
+  ) {
+    this.assertJobSecret(secret);
+
+    if (!this.pool) {
+      return {
+        status: 'skipped',
+        job: 'volunteer-public-links-cleanup',
+        timestamp: new Date().toISOString(),
+        reason: 'Database pool is not available',
+      };
+    }
+
+    const result = await this.pool.query(
+      `UPDATE volunteer_public_links
+          SET revoked_at = NOW()
+        WHERE revoked_at IS NULL
+          AND expires_at <= NOW()
+        RETURNING token`,
+    );
+
+    return {
+      status: 'ok',
+      job: 'volunteer-public-links-cleanup',
+      timestamp: new Date().toISOString(),
+      revoked: result.rowCount ?? 0,
     };
   }
 }

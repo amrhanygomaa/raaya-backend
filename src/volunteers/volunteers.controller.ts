@@ -280,7 +280,7 @@ export class VolunteersController {
       'Generate a tokenized public-share URL for the caller volunteer profile',
     description:
       'TTL is controlled by env `VOLUNTEER_PUBLIC_LINK_TTL_DAYS` (default 30 days). ' +
-      'Base URL is `VOLUNTEER_PUBLIC_BASE_URL` (default https://app.helpers-tech.com/v).',
+      'Base URL is `VOLUNTEER_PUBLIC_BASE_URL` (default https://api.helpers-tech.com/v).',
   })
   @ApiResponse({
     status: 201,

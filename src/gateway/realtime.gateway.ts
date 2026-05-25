@@ -17,6 +17,28 @@ import { PG_POOL } from '../database/database.module';
 // 'sos_alert'      → طوارئ SOS
 // 'message'        → رسالة chat جديدة
 // 'vitals_updated' → تحديث علامات حيوية
+// 'live_event'     → حدث عام لتحديث live banners
+
+export type LiveEventType =
+  | 'residents'
+  | 'resident_audit'
+  | 'medications'
+  | 'family_visits'
+  | 'family_media'
+  | 'complaints'
+  | 'health'
+  | 'notifications'
+  | 'messages'
+  | 'kpi';
+
+export interface LiveEventPayload {
+  type: LiveEventType;
+  action: string;
+  entityId?: string;
+  residentId?: string;
+  userId?: string;
+  data?: Record<string, unknown>;
+}
 
 @WebSocketGateway({
   cors: {
@@ -103,6 +125,25 @@ export class RealtimeGateway
       ...payload,
       _ts: Date.now(),
     });
+  }
+
+  /** بث حدث live عام + event محدد حسب النوع لتحديث واجهات Flutter */
+  broadcastLiveEvent(
+    facilityId: string,
+    payload: Omit<LiveEventPayload, 'type'> & { type: LiveEventType },
+  ) {
+    const event = {
+      ...payload,
+      _ts: Date.now(),
+    };
+    this.server.to(`facility:${facilityId}`).emit('live_event', event);
+    this.server
+      .to(`facility:${facilityId}`)
+      .emit(`${payload.type}_updated`, event);
+  }
+
+  broadcastKpiRefresh(facilityId: string, action = 'refresh') {
+    this.broadcastLiveEvent(facilityId, { type: 'kpi', action });
   }
 
   /** بث تنبيه SOS لكل المتصلين في الـ facility */

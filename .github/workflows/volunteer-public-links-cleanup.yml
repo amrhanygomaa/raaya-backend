@@ -1,0 +1,23 @@
+name: Cleanup Volunteer Public Links
+
+on:
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Revoke expired volunteer public links
+        env:
+          BACKEND_URL: https://api.helpers-tech.com
+          JOB_SECRET: ${{ secrets.JOB_SECRET }}
+        run: |
+          if [ -z "$JOB_SECRET" ]; then
+            echo "JOB_SECRET secret is not configured"
+            exit 1
+          fi
+
+          curl -fsS -X POST "$BACKEND_URL/jobs/volunteer-public-links/cleanup" \
+            -H "x-job-secret: $JOB_SECRET"

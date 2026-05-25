@@ -45,6 +45,7 @@ import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
 import { LogDoseDto } from './dto/log-dose.dto';
 import { UpdateDoseDto } from './dto/update-dose.dto';
+import { RealtimeGateway } from '../gateway/realtime.gateway';
 
 interface AuthenticatedRequest {
   user: {
@@ -59,7 +60,25 @@ interface AuthenticatedRequest {
 @ApiBearerAuth()
 @Controller('medications')
 export class MedicationsController {
-  constructor(private readonly medicationsService: MedicationsService) {}
+  constructor(
+    private readonly medicationsService: MedicationsService,
+    private readonly gateway: RealtimeGateway,
+  ) {}
+
+  private broadcastMedicationsChanged(
+    facilityId: string,
+    action: string,
+    entityId?: string,
+    data?: Record<string, unknown>,
+  ) {
+    this.gateway.broadcastLiveEvent(facilityId, {
+      type: 'medications',
+      action,
+      entityId,
+      data,
+    });
+    this.gateway.broadcastKpiRefresh(facilityId, 'medications_changed');
+  }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  SCHEDULE CRUD
@@ -74,7 +93,17 @@ export class MedicationsController {
     @Request() req: AuthenticatedRequest,
     @Body() dto: CreateScheduleDto,
   ) {
-    return this.medicationsService.createSchedule(req.user.facilityId, dto);
+    const schedule = await this.medicationsService.createSchedule(
+      req.user.facilityId,
+      dto,
+    );
+    this.broadcastMedicationsChanged(
+      req.user.facilityId,
+      'schedule_created',
+      schedule.id,
+      schedule as unknown as Record<string, unknown>,
+    );
+    return schedule;
   }
 
   @Get('schedules')
@@ -129,7 +158,18 @@ export class MedicationsController {
     @Param('id') id: string,
     @Body() dto: UpdateScheduleDto,
   ) {
-    return this.medicationsService.updateSchedule(req.user.facilityId, id, dto);
+    const schedule = await this.medicationsService.updateSchedule(
+      req.user.facilityId,
+      id,
+      dto,
+    );
+    this.broadcastMedicationsChanged(
+      req.user.facilityId,
+      'schedule_updated',
+      schedule.id,
+      schedule as unknown as Record<string, unknown>,
+    );
+    return schedule;
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -142,11 +182,18 @@ export class MedicationsController {
   @ApiResponse({ status: 201, description: 'Dose log created.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   async logDose(@Request() req: AuthenticatedRequest, @Body() dto: LogDoseDto) {
-    return this.medicationsService.logDose(
+    const dose = await this.medicationsService.logDose(
       req.user.facilityId,
       req.user.userId,
       dto,
     );
+    this.broadcastMedicationsChanged(
+      req.user.facilityId,
+      'dose_logged',
+      dose.id,
+      dose as unknown as Record<string, unknown>,
+    );
+    return dose;
   }
 
   @Get('doses')
@@ -193,12 +240,19 @@ export class MedicationsController {
     @Param('id') id: string,
     @Body() dto: UpdateDoseDto,
   ) {
-    return this.medicationsService.updateDose(
+    const dose = await this.medicationsService.updateDose(
       req.user.facilityId,
       id,
       req.user.userId,
       dto,
     );
+    this.broadcastMedicationsChanged(
+      req.user.facilityId,
+      'dose_updated',
+      dose.id,
+      dose as unknown as Record<string, unknown>,
+    );
+    return dose;
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

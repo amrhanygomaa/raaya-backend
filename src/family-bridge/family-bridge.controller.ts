@@ -42,6 +42,7 @@ import { UploadMediaDto } from './dto/upload-media.dto';
 import { ConfirmMediaDto } from './dto/confirm-media.dto';
 import { BookVisitDto } from './dto/book-visit.dto';
 import { UpdateVisitStatusDto } from './dto/update-visit-status.dto';
+import { RealtimeGateway } from '../gateway/realtime.gateway';
 
 interface AuthenticatedRequest {
   user: {
@@ -56,7 +57,10 @@ interface AuthenticatedRequest {
 @ApiBearerAuth()
 @Controller('family-bridge')
 export class FamilyBridgeController {
-  constructor(private readonly familyBridgeService: FamilyBridgeService) {}
+  constructor(
+    private readonly familyBridgeService: FamilyBridgeService,
+    private readonly gateway: RealtimeGateway,
+  ) {}
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  MEDIA
@@ -105,7 +109,23 @@ export class FamilyBridgeController {
     @Param('id') id: string,
     @Body() dto: ConfirmMediaDto,
   ) {
-    return this.familyBridgeService.confirmUpload(req.user.facilityId, id, dto);
+    const media = await this.familyBridgeService.confirmUpload(
+      req.user.facilityId,
+      id,
+      dto,
+    );
+    this.gateway.broadcastLiveEvent(req.user.facilityId, {
+      type: 'family_media',
+      action: 'media_confirmed',
+      entityId: media.id,
+      residentId: media.residentId,
+      data: media as unknown as Record<string, unknown>,
+    });
+    this.gateway.broadcastKpiRefresh(
+      req.user.facilityId,
+      'family_media_changed',
+    );
+    return media;
   }
 
   @Delete('media/:id')
@@ -121,7 +141,20 @@ export class FamilyBridgeController {
     @Request() req: AuthenticatedRequest,
     @Param('id') id: string,
   ) {
-    return this.familyBridgeService.deleteMedia(req.user.facilityId, id);
+    const result = await this.familyBridgeService.deleteMedia(
+      req.user.facilityId,
+      id,
+    );
+    this.gateway.broadcastLiveEvent(req.user.facilityId, {
+      type: 'family_media',
+      action: 'media_deleted',
+      entityId: id,
+    });
+    this.gateway.broadcastKpiRefresh(
+      req.user.facilityId,
+      'family_media_changed',
+    );
+    return result;
   }
 
   @Get('media')
@@ -178,11 +211,24 @@ export class FamilyBridgeController {
       req.user.email,
       dto.residentId,
     );
-    return this.familyBridgeService.bookVisit(
+    const visit = await this.familyBridgeService.bookVisit(
       req.user.facilityId,
       req.user.userId,
       dto,
     );
+    this.gateway.broadcastLiveEvent(req.user.facilityId, {
+      type: 'family_visits',
+      action: 'visit_booked',
+      entityId: visit.id,
+      residentId: visit.residentId,
+      userId: req.user.userId,
+      data: visit as unknown as Record<string, unknown>,
+    });
+    this.gateway.broadcastKpiRefresh(
+      req.user.facilityId,
+      'family_visits_changed',
+    );
+    return visit;
   }
 
   @Get('visits')
@@ -231,11 +277,24 @@ export class FamilyBridgeController {
     @Param('id') id: string,
     @Body() dto: UpdateVisitStatusDto,
   ) {
-    return this.familyBridgeService.updateVisitStatus(
+    const visit = await this.familyBridgeService.updateVisitStatus(
       req.user.facilityId,
       id,
       req.user.userId,
       dto,
     );
+    this.gateway.broadcastLiveEvent(req.user.facilityId, {
+      type: 'family_visits',
+      action: 'visit_status_updated',
+      entityId: visit.id,
+      residentId: visit.residentId,
+      userId: req.user.userId,
+      data: visit as unknown as Record<string, unknown>,
+    });
+    this.gateway.broadcastKpiRefresh(
+      req.user.facilityId,
+      'family_visits_changed',
+    );
+    return visit;
   }
 }

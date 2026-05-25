@@ -7,7 +7,7 @@
 #   sudo ./setup-https.sh your-email@example.com
 #
 # المتطلبات قبل التشغيل:
-#   1. أضف A record في Hostinger:  api  →  13.219.217.9
+#   1. أضف A record في Hostinger:  api  →  EC2_PUBLIC_IP
 #   2. انتظر 5-10 دقائق حتى ينتشر الـ DNS
 #   3. تأكد إن port 80 و 443 مفتوحين في EC2 Security Group
 # ============================================================

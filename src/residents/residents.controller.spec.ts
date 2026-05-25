@@ -13,6 +13,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ResidentsController } from './residents.controller';
 import { ResidentsService } from './residents.service';
 import { Resident } from './residents.schema';
+import { RealtimeGateway } from '../gateway/realtime.gateway';
 
 const FACILITY_ID = 'facility-test';
 const RESIDENT_ID = '11111111-1111-1111-1111-111111111111';
@@ -62,6 +63,12 @@ describe('ResidentsController', () => {
           provide: 'PG_POOL',
           useValue: {
             query: jest.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+          },
+        },
+        {
+          provide: RealtimeGateway,
+          useValue: {
+            broadcastLiveEvent: jest.fn(),
           },
         },
       ],

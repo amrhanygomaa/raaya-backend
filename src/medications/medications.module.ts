@@ -6,10 +6,12 @@
  */
 
 import { Module } from '@nestjs/common';
+import { GatewayModule } from '../gateway/gateway.module';
 import { MedicationsController } from './medications.controller';
 import { MedicationsService } from './medications.service';
 
 @Module({
+  imports: [GatewayModule],
   controllers: [MedicationsController],
   providers: [MedicationsService],
   exports: [MedicationsService],

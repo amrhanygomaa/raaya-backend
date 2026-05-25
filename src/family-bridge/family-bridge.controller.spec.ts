@@ -15,6 +15,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { FamilyBridgeController } from './family-bridge.controller';
 import { FamilyBridgeService } from './family-bridge.service';
 import { MediaItem, MediaUploadResult, Visit } from './family-bridge.schema';
+import { RealtimeGateway } from '../gateway/realtime.gateway';
 
 const FACILITY_ID = 'facility-test';
 const USER_ID = 'family-user-1';
@@ -96,6 +97,13 @@ describe('FamilyBridgeController', () => {
             updateVisitStatus: jest
               .fn()
               .mockResolvedValue({ ...mockVisit, status: 'approved' }),
+          },
+        },
+        {
+          provide: RealtimeGateway,
+          useValue: {
+            broadcastLiveEvent: jest.fn(),
+            broadcastKpiRefresh: jest.fn(),
           },
         },
       ],

@@ -43,6 +43,7 @@ import { ResidentsService } from './residents.service';
 import { CreateResidentDto } from './dto/create-resident.dto';
 import { UpdateResidentDto } from './dto/update-resident.dto';
 import { UpsertMedicalInfoDto } from './dto/upsert-medical-info.dto';
+import { RealtimeGateway } from '../gateway/realtime.gateway';
 
 interface AuthenticatedRequest {
   user: {
@@ -60,6 +61,7 @@ export class ResidentsController {
   constructor(
     private readonly residentsService: ResidentsService,
     @Inject(PG_POOL) private readonly pool: Pool,
+    private readonly gateway: RealtimeGateway,
   ) {}
 
   // ── POST /residents ────────────────────────────────────────────────────────
@@ -75,11 +77,31 @@ export class ResidentsController {
     @Request() req: AuthenticatedRequest,
     @Body() dto: CreateResidentDto,
   ) {
-    return this.residentsService.create(req.user.facilityId, dto, {
+    const resident = await this.residentsService.create(
+      req.user.facilityId,
+      dto,
+      {
+        userId: req.user.userId,
+        name: req.user.email,
+        roles: req.user.roles,
+      },
+    );
+    this.gateway.broadcastLiveEvent(req.user.facilityId, {
+      type: 'residents',
+      action: 'resident_created',
+      entityId: resident.id,
+      residentId: resident.id,
       userId: req.user.userId,
-      name: req.user.email,
-      roles: req.user.roles,
+      data: resident as unknown as Record<string, unknown>,
     });
+    this.gateway.broadcastLiveEvent(req.user.facilityId, {
+      type: 'resident_audit',
+      action: 'created',
+      entityId: resident.id,
+      residentId: resident.id,
+      userId: req.user.userId,
+    });
+    return resident;
   }
 
   // ── GET /residents ─────────────────────────────────────────────────────────
@@ -127,11 +149,32 @@ export class ResidentsController {
     @Param('id') id: string,
     @Body() dto: UpdateResidentDto,
   ) {
-    return this.residentsService.update(req.user.facilityId, id, dto, {
+    const resident = await this.residentsService.update(
+      req.user.facilityId,
+      id,
+      dto,
+      {
+        userId: req.user.userId,
+        name: req.user.email,
+        roles: req.user.roles,
+      },
+    );
+    this.gateway.broadcastLiveEvent(req.user.facilityId, {
+      type: 'residents',
+      action: 'resident_updated',
+      entityId: id,
+      residentId: id,
       userId: req.user.userId,
-      name: req.user.email,
-      roles: req.user.roles,
+      data: resident as unknown as Record<string, unknown>,
     });
+    this.gateway.broadcastLiveEvent(req.user.facilityId, {
+      type: 'resident_audit',
+      action: 'updated',
+      entityId: id,
+      residentId: id,
+      userId: req.user.userId,
+    });
+    return resident;
   }
 
   // ── GET /residents/:id/medical-info ─────────────────────────────────────────
@@ -162,7 +205,7 @@ export class ResidentsController {
     @Param('id') id: string,
     @Body() dto: UpsertMedicalInfoDto,
   ) {
-    return this.residentsService.upsertMedicalInfo(
+    const medicalInfo = await this.residentsService.upsertMedicalInfo(
       req.user.facilityId,
       id,
       dto,
@@ -172,6 +215,22 @@ export class ResidentsController {
         roles: req.user.roles,
       },
     );
+    this.gateway.broadcastLiveEvent(req.user.facilityId, {
+      type: 'residents',
+      action: 'resident_medical_info_updated',
+      entityId: id,
+      residentId: id,
+      userId: req.user.userId,
+      data: medicalInfo as unknown as Record<string, unknown>,
+    });
+    this.gateway.broadcastLiveEvent(req.user.facilityId, {
+      type: 'resident_audit',
+      action: 'medical_info_updated',
+      entityId: id,
+      residentId: id,
+      userId: req.user.userId,
+    });
+    return medicalInfo;
   }
 
   // ── GET /residents/:id/audit-trail ──────────────────────────────────────────

@@ -19,6 +19,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { MessagesService } from './messages.service';
 import { SendMessageDto } from './dto/send-message.dto';
+import { RealtimeGateway } from '../gateway/realtime.gateway';
 
 interface AuthenticatedRequest {
   user: { userId: string; email: string; roles: string[]; facilityId: string };
@@ -29,7 +30,10 @@ interface AuthenticatedRequest {
 @UseGuards(AuthGuard('jwt'))
 @Controller('messages')
 export class MessagesController {
-  constructor(private readonly messagesService: MessagesService) {}
+  constructor(
+    private readonly messagesService: MessagesService,
+    private readonly gateway: RealtimeGateway,
+  ) {}
 
   @Post()
   @ApiOperation({
@@ -41,12 +45,25 @@ export class MessagesController {
     @Body() dto: SendMessageDto,
   ) {
     const senderRole = req.user.roles[0] ?? 'unknown';
-    return this.messagesService.send(
+    const message = await this.messagesService.send(
       req.user.facilityId,
       req.user.userId,
       senderRole,
       dto,
     );
+    this.gateway.sendMessageToUser(
+      dto.recipientId,
+      message as unknown as Record<string, unknown>,
+    );
+    this.gateway.broadcastLiveEvent(req.user.facilityId, {
+      type: 'messages',
+      action: 'message_sent',
+      entityId: message.id,
+      residentId: dto.residentId,
+      userId: dto.recipientId,
+      data: message as unknown as Record<string, unknown>,
+    });
+    return message;
   }
 
   @Get('inbox')
@@ -107,6 +124,11 @@ export class MessagesController {
       req.user.userId,
       otherUserId,
     );
+    this.gateway.broadcastLiveEvent(req.user.facilityId, {
+      type: 'messages',
+      action: 'messages_read',
+      userId: req.user.userId,
+    });
     return { status: 'ok' };
   }
 }

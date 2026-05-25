@@ -65,8 +65,8 @@ class ApiConfig {
   ///
   /// Android Emulator  → http://10.0.2.2:3000
   /// iOS Simulator     → http://localhost:3000
-  /// Real device / Prod → http://<EC2_PUBLIC_IP>:3000
-  static const String baseUrl = 'http://13.219.217.9:3000';
+  /// Real device / Prod → https://api.helpers-tech.com
+  static const String baseUrl = 'https://api.helpers-tech.com';
 
   /// AWS Cognito identifiers (from the demo User Pool).
   static const String cognitoUserPoolId = 'us-east-1_XXXXXXXX';
@@ -444,15 +444,17 @@ Future<T> safeApiCall<T>(Future<T> Function() call) async {
 
 ## 8. Android Network Configuration
 
-For Android to allow HTTP (non-HTTPS) connections to the backend:
+For Android local development only, allow cleartext HTTP to emulator hosts.
+Production should use `https://api.helpers-tech.com` and must not allow the
+old EC2 demo IP.
 
 ```xml
 <!-- android/app/src/main/res/xml/network_security_config.xml -->
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
   <domain-config cleartextTrafficPermitted="true">
-    <domain includeSubdomains="true">13.219.217.9</domain>
     <domain includeSubdomains="true">10.0.2.2</domain>
+    <domain includeSubdomains="true">localhost</domain>
   </domain-config>
 </network-security-config>
 ```

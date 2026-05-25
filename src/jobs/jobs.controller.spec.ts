@@ -95,4 +95,22 @@ describe('JobsController', () => {
       residentId: 'resident-demo',
     });
   });
+
+  it('revokes expired volunteer public links', async () => {
+    const pool = {
+      query: jest.fn().mockResolvedValue({ rowCount: 3 }),
+    };
+    const controller = new JobsController(pool as any);
+
+    await expect(
+      controller.cleanupVolunteerPublicLinks('test-secret'),
+    ).resolves.toMatchObject({
+      status: 'ok',
+      job: 'volunteer-public-links-cleanup',
+      revoked: 3,
+    });
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining('volunteer_public_links'),
+    );
+  });
 });

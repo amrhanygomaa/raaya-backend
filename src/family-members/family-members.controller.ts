@@ -38,6 +38,13 @@ interface AuthenticatedRequest {
 export class FamilyMembersController {
   constructor(private readonly service: FamilyMembersService) {}
 
+  @Get('me')
+  @ApiOperation({ summary: 'List family member links for current user email' })
+  @ApiResponse({ status: 200, description: 'Array of linked family records.' })
+  async findMine(@Request() req: AuthenticatedRequest) {
+    return this.service.findByEmail(req.user.facilityId, req.user.email);
+  }
+
   @Get()
   @ApiOperation({ summary: 'List family members for a resident' })
   @ApiQuery({ name: 'residentId', required: true })

@@ -17,6 +17,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { PG_POOL } from '../database/database.module';
 import {
   VolunteerProfile,
+  PublicVolunteerProfile,
   VolunteerOpportunity,
   VolunteerBooking,
   VolunteerCertificate,
@@ -559,7 +560,7 @@ export class VolunteersService {
     );
 
     const base = (
-      process.env.VOLUNTEER_PUBLIC_BASE_URL ?? 'https://app.helpers-tech.com/v'
+      process.env.VOLUNTEER_PUBLIC_BASE_URL ?? 'https://api.helpers-tech.com/v'
     ).replace(/\/$/, '');
     const url = `${base}/${token}`;
     const expiresAt =
@@ -568,6 +569,55 @@ export class VolunteersService {
 
     this.logger.log(`Volunteer public link created: ${userId} → ${token}`);
     return { url, token, expiresAt };
+  }
+
+  async getPublicProfileByToken(
+    token: string,
+  ): Promise<PublicVolunteerProfile> {
+    const normalizedToken = token.trim();
+    if (!normalizedToken) {
+      throw new NotFoundException('Public volunteer profile not found');
+    }
+
+    const result = await this.pool.query<Record<string, unknown>>(
+      `
+        SELECT
+          p.name,
+          p.bio,
+          p.location,
+          p.skills,
+          p.hours_logged,
+          p.social_links,
+          p.cv_file_url,
+          l.expires_at
+        FROM volunteer_public_links l
+        JOIN volunteer_profiles p
+          ON p.user_id = l.user_id
+         AND p.facility_id = l.facility_id
+        WHERE l.token = $1
+          AND l.revoked_at IS NULL
+          AND l.expires_at > NOW()
+        LIMIT 1
+      `,
+      [normalizedToken],
+    );
+
+    if (result.rowCount === 0) {
+      throw new NotFoundException('Public volunteer profile not found');
+    }
+
+    const row = result.rows[0];
+    return {
+      name: row.name as string,
+      bio: (row.bio as string) ?? undefined,
+      location: (row.location as string) ?? undefined,
+      skills: (row.skills as string[]) ?? [],
+      hoursLogged: Number(row.hours_logged ?? 0),
+      socialLinks: (row.social_links as Record<string, string>) ?? {},
+      cvFileUrl: (row.cv_file_url as string) ?? undefined,
+      expiresAt:
+        (row.expires_at as Date)?.toISOString?.() ?? (row.expires_at as string),
+    };
   }
 
   // ── DOCUMENTS (P12) ────────────────────────────────────────────────────────

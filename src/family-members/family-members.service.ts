@@ -62,6 +62,21 @@ export class FamilyMembersService {
     return result.rows.map(rowToMember);
   }
 
+  async findByEmail(
+    facilityId: string,
+    email: string,
+  ): Promise<FamilyMember[]> {
+    const result = await this.pool.query<Record<string, unknown>>(
+      `SELECT fm.* FROM family_members fm
+       INNER JOIN residents r ON fm.resident_id = r.id
+       WHERE r.facility_id = $1
+         AND LOWER(fm.email) = LOWER($2)
+       ORDER BY fm.is_primary DESC, fm.full_name ASC`,
+      [facilityId, email],
+    );
+    return result.rows.map(rowToMember);
+  }
+
   async findOne(facilityId: string, id: string): Promise<FamilyMember> {
     const result = await this.pool.query<Record<string, unknown>>(
       `SELECT fm.* FROM family_members fm

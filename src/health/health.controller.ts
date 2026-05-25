@@ -43,6 +43,7 @@ import { HealthService } from './health.service';
 import { RecordVitalsDto } from './dto/record-vitals.dto';
 import { UpdateThresholdDto } from './dto/update-threshold.dto';
 import { UpdateAlertDto } from './dto/update-alert.dto';
+import { RealtimeGateway } from '../gateway/realtime.gateway';
 
 interface AuthenticatedRequest {
   user: {
@@ -57,7 +58,10 @@ interface AuthenticatedRequest {
 @ApiBearerAuth()
 @Controller('health')
 export class HealthController {
-  constructor(private readonly healthService: HealthService) {}
+  constructor(
+    private readonly healthService: HealthService,
+    private readonly gateway: RealtimeGateway,
+  ) {}
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  VITALS
@@ -79,11 +83,25 @@ export class HealthController {
     @Request() req: AuthenticatedRequest,
     @Body() dto: RecordVitalsDto,
   ) {
-    return this.healthService.recordVitals(
+    const result = await this.healthService.recordVitals(
       req.user.facilityId,
       req.user.userId,
       dto,
     );
+    this.gateway.broadcastVitals(
+      dto.residentId,
+      result as unknown as Record<string, unknown>,
+    );
+    this.gateway.broadcastLiveEvent(req.user.facilityId, {
+      type: 'health',
+      action: 'vitals_recorded',
+      entityId: result.vitalSign.id,
+      residentId: dto.residentId,
+      userId: req.user.userId,
+      data: result as unknown as Record<string, unknown>,
+    });
+    this.gateway.broadcastKpiRefresh(req.user.facilityId, 'health_changed');
+    return result;
   }
 
   @Get('vitals')
@@ -147,12 +165,22 @@ export class HealthController {
     @Param('id') id: string,
     @Body() dto: UpdateAlertDto,
   ) {
-    return this.healthService.updateAlert(
+    const alert = await this.healthService.updateAlert(
       req.user.facilityId,
       id,
       req.user.userId,
       dto,
     );
+    this.gateway.broadcastLiveEvent(req.user.facilityId, {
+      type: 'health',
+      action: 'alert_updated',
+      entityId: alert.id,
+      residentId: alert.residentId,
+      userId: req.user.userId,
+      data: alert as unknown as Record<string, unknown>,
+    });
+    this.gateway.broadcastKpiRefresh(req.user.facilityId, 'health_changed');
+    return alert;
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -182,6 +210,17 @@ export class HealthController {
     @Request() req: AuthenticatedRequest,
     @Body() dto: UpdateThresholdDto,
   ) {
-    return this.healthService.upsertThreshold(req.user.facilityId, dto);
+    const threshold = await this.healthService.upsertThreshold(
+      req.user.facilityId,
+      dto,
+    );
+    this.gateway.broadcastLiveEvent(req.user.facilityId, {
+      type: 'health',
+      action: 'threshold_updated',
+      entityId: threshold.id,
+      userId: req.user.userId,
+      data: threshold as unknown as Record<string, unknown>,
+    });
+    return threshold;
   }
 }

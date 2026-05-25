@@ -19,6 +19,7 @@ import {
   VitalThreshold,
   RecordVitalsResult,
 } from './health.schema';
+import { RealtimeGateway } from '../gateway/realtime.gateway';
 
 const FACILITY_ID = 'facility-test';
 const USER_ID = 'nurse-1';
@@ -117,6 +118,14 @@ describe('HealthController', () => {
               .mockResolvedValue({ ...mockAlert, status: 'acknowledged' }),
             findThresholds: jest.fn().mockResolvedValue([mockThreshold]),
             upsertThreshold: jest.fn().mockResolvedValue(mockThreshold),
+          },
+        },
+        {
+          provide: RealtimeGateway,
+          useValue: {
+            broadcastVitals: jest.fn(),
+            broadcastLiveEvent: jest.fn(),
+            broadcastKpiRefresh: jest.fn(),
           },
         },
       ],

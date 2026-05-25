@@ -39,6 +39,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { ComplaintsService } from './complaints.service';
 import { CreateComplaintDto } from './dto/create-complaint.dto';
 import { UpdateComplaintStatusDto } from './dto/update-complaint-status.dto';
+import { RealtimeGateway } from '../gateway/realtime.gateway';
 
 interface AuthenticatedRequest {
   user: {
@@ -53,7 +54,10 @@ interface AuthenticatedRequest {
 @ApiBearerAuth()
 @Controller('complaints')
 export class ComplaintsController {
-  constructor(private readonly complaintsService: ComplaintsService) {}
+  constructor(
+    private readonly complaintsService: ComplaintsService,
+    private readonly gateway: RealtimeGateway,
+  ) {}
 
   @Post()
   @UseGuards(AuthGuard('jwt'))
@@ -66,11 +70,21 @@ export class ComplaintsController {
     @Request() req: AuthenticatedRequest,
     @Body() dto: CreateComplaintDto,
   ) {
-    return this.complaintsService.create(
+    const complaint = await this.complaintsService.create(
       req.user.facilityId,
       req.user.userId,
       dto,
     );
+    this.gateway.broadcastLiveEvent(req.user.facilityId, {
+      type: 'complaints',
+      action: 'complaint_created',
+      entityId: complaint.id,
+      residentId: complaint.residentId,
+      userId: req.user.userId,
+      data: complaint as unknown as Record<string, unknown>,
+    });
+    this.gateway.broadcastKpiRefresh(req.user.facilityId, 'complaints_changed');
+    return complaint;
   }
 
   @Get()
@@ -136,11 +150,21 @@ export class ComplaintsController {
     @Param('id') id: string,
     @Body() dto: UpdateComplaintStatusDto,
   ) {
-    return this.complaintsService.updateStatus(
+    const complaint = await this.complaintsService.updateStatus(
       req.user.facilityId,
       id,
       req.user.userId,
       dto,
     );
+    this.gateway.broadcastLiveEvent(req.user.facilityId, {
+      type: 'complaints',
+      action: 'complaint_status_updated',
+      entityId: complaint.id,
+      residentId: complaint.residentId,
+      userId: req.user.userId,
+      data: complaint as unknown as Record<string, unknown>,
+    });
+    this.gateway.broadcastKpiRefresh(req.user.facilityId, 'complaints_changed');
+    return complaint;
   }
 }

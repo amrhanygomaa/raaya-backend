@@ -8,6 +8,8 @@ interface JwtPayload {
   email: string;
   'custom:role'?: string;
   'custom:facilityId': string;
+  'custom:linkedResidentId'?: string;
+  name?: string;
   'cognito:groups'?: string[];
 }
 
@@ -41,8 +43,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   validate(payload: JwtPayload): {
     userId: string;
     email: string;
+    name?: string;
     roles: string[];
     facilityId: string;
+    linkedResidentId?: string;
   } {
     if (!payload) throw new UnauthorizedException();
 
@@ -60,6 +64,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       email: payload.email,
       roles,
       facilityId: payload['custom:facilityId'],
+      ...(payload.name ? { name: payload.name } : {}),
+      ...(payload['custom:linkedResidentId']
+        ? { linkedResidentId: payload['custom:linkedResidentId'] }
+        : {}),
     };
   }
 }

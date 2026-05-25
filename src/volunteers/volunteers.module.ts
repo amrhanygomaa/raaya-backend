@@ -4,10 +4,11 @@
 
 import { Module } from '@nestjs/common';
 import { VolunteersController } from './volunteers.controller';
+import { VolunteerPublicController } from './volunteer-public.controller';
 import { VolunteersService } from './volunteers.service';
 
 @Module({
-  controllers: [VolunteersController],
+  controllers: [VolunteersController, VolunteerPublicController],
   providers: [VolunteersService],
   exports: [VolunteersService],
 })

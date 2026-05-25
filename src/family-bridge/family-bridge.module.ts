@@ -6,10 +6,12 @@
  */
 
 import { Module } from '@nestjs/common';
+import { GatewayModule } from '../gateway/gateway.module';
 import { FamilyBridgeController } from './family-bridge.controller';
 import { FamilyBridgeService } from './family-bridge.service';
 
 @Module({
+  imports: [GatewayModule],
   controllers: [FamilyBridgeController],
   providers: [FamilyBridgeService],
   exports: [FamilyBridgeService],

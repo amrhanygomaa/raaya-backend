@@ -17,6 +17,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { MedicationsController } from './medications.controller';
 import { MedicationsService } from './medications.service';
 import { MedicationSchedule, DoseLog, OverdueDose } from './medications.schema';
+import { RealtimeGateway } from '../gateway/realtime.gateway';
 
 const FACILITY_ID = 'facility-test';
 const USER_ID = 'nurse-user-1';
@@ -116,6 +117,13 @@ describe('MedicationsController', () => {
                 },
               ],
             }),
+          },
+        },
+        {
+          provide: RealtimeGateway,
+          useValue: {
+            broadcastLiveEvent: jest.fn(),
+            broadcastKpiRefresh: jest.fn(),
           },
         },
       ],

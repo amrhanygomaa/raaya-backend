@@ -17,6 +17,17 @@ export interface VolunteerProfile {
   updatedAt: string;
 }
 
+export interface PublicVolunteerProfile {
+  name: string;
+  bio?: string;
+  location?: string;
+  skills: string[];
+  hoursLogged: number;
+  socialLinks: Record<string, string>;
+  cvFileUrl?: string;
+  expiresAt: string;
+}
+
 export interface VolunteerOpportunity {
   id: string;
   facilityId: string;

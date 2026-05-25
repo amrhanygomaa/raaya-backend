@@ -7,6 +7,7 @@ import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
 import { Notification } from './notifications.schema';
 import { PG_POOL } from '../database/database.module';
+import { RealtimeGateway } from '../gateway/realtime.gateway';
 
 const FACILITY_ID = 'facility-test';
 const USER_ID = 'nurse-seed';
@@ -48,6 +49,13 @@ describe('NotificationsController', () => {
           },
         },
         { provide: PG_POOL, useValue: { query: jest.fn() } },
+        {
+          provide: RealtimeGateway,
+          useValue: {
+            broadcastNotification: jest.fn(),
+            broadcastLiveEvent: jest.fn(),
+          },
+        },
       ],
     }).compile();
 

@@ -40,6 +40,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { NotificationsService } from './notifications.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
+import { RealtimeGateway } from '../gateway/realtime.gateway';
 
 interface AuthenticatedRequest {
   user: {
@@ -57,6 +58,7 @@ export class NotificationsController {
   constructor(
     private readonly notificationsService: NotificationsService,
     @Inject(PG_POOL) private readonly pool: Pool,
+    private readonly gateway: RealtimeGateway,
   ) {}
 
   @Post()
@@ -67,7 +69,22 @@ export class NotificationsController {
     @Request() req: AuthenticatedRequest,
     @Body() dto: CreateNotificationDto,
   ) {
-    return this.notificationsService.create(req.user.facilityId, dto);
+    const notification = await this.notificationsService.create(
+      req.user.facilityId,
+      dto,
+    );
+    this.gateway.broadcastNotification(
+      req.user.facilityId,
+      notification as unknown as Record<string, unknown>,
+    );
+    this.gateway.broadcastLiveEvent(req.user.facilityId, {
+      type: 'notifications',
+      action: 'notification_created',
+      entityId: notification.id,
+      userId: notification.userId,
+      data: notification as unknown as Record<string, unknown>,
+    });
+    return notification;
   }
 
   @Get(':userId')
@@ -95,7 +112,17 @@ export class NotificationsController {
     @Request() req: AuthenticatedRequest,
     @Param('id') id: string,
   ) {
-    return this.notificationsService.markAsRead(req.user.facilityId, id);
+    const result = await this.notificationsService.markAsRead(
+      req.user.facilityId,
+      id,
+    );
+    this.gateway.broadcastLiveEvent(req.user.facilityId, {
+      type: 'notifications',
+      action: 'notification_read',
+      entityId: id,
+      userId: req.user.userId,
+    });
+    return result;
   }
 
   @Delete('user/:userId')
@@ -107,7 +134,16 @@ export class NotificationsController {
     @Request() req: AuthenticatedRequest,
     @Param('userId') userId: string,
   ) {
-    return this.notificationsService.deleteByUser(req.user.facilityId, userId);
+    const result = await this.notificationsService.deleteByUser(
+      req.user.facilityId,
+      userId,
+    );
+    this.gateway.broadcastLiveEvent(req.user.facilityId, {
+      type: 'notifications',
+      action: 'notifications_deleted_for_user',
+      userId,
+    });
+    return result;
   }
 
   @Delete(':id')
@@ -119,7 +155,17 @@ export class NotificationsController {
     @Request() req: AuthenticatedRequest,
     @Param('id') id: string,
   ) {
-    return this.notificationsService.deleteOne(req.user.facilityId, id);
+    const result = await this.notificationsService.deleteOne(
+      req.user.facilityId,
+      id,
+    );
+    this.gateway.broadcastLiveEvent(req.user.facilityId, {
+      type: 'notifications',
+      action: 'notification_deleted',
+      entityId: id,
+      userId: req.user.userId,
+    });
+    return result;
   }
 
   @Post('push-tokens')

@@ -102,8 +102,8 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "nginx/raaya-api.conf"
-          target: "/home/ec2-user/raaya-backend/"
+          source: 'nginx/raaya-api.conf'
+          target: '/home/ec2-user/raaya-backend/'
           strip_components: 1
 
       - name: Copy migrations to EC2
@@ -112,8 +112,8 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "migrations/"
-          target: "/home/ec2-user/raaya-backend/"
+          source: 'migrations/'
+          target: '/home/ec2-user/raaya-backend/'
           strip_components: 0
 
       - name: Deploy to EC2 via SSH
@@ -148,7 +148,7 @@ jobs:
               -e DB_USER=raaya_admin \
               -e "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" \
               -e S3_MEDIA_PUBLIC_BASE_URL=https://raaya-demo-media.s3.amazonaws.com \
-              -e VOLUNTEER_PUBLIC_BASE_URL=https://app.helpers-tech.com/v \
+              -e VOLUNTEER_PUBLIC_BASE_URL=https://api.helpers-tech.com/v \
               -e VOLUNTEER_PUBLIC_LINK_TTL_DAYS=30 \
               --log-driver awslogs \
               --log-opt awslogs-region=us-east-1 \

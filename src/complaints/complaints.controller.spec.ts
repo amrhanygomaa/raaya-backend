@@ -14,6 +14,7 @@ import { BadRequestException } from '@nestjs/common';
 import { ComplaintsController } from './complaints.controller';
 import { ComplaintsService } from './complaints.service';
 import { Complaint } from './complaints.schema';
+import { RealtimeGateway } from '../gateway/realtime.gateway';
 
 const FACILITY_ID = 'facility-test';
 const USER_ID = 'admin-1';
@@ -71,6 +72,13 @@ describe('ComplaintsController', () => {
             findAll: jest.fn().mockResolvedValue([mockComplaintOpen]),
             findOne: jest.fn().mockResolvedValue(mockComplaintOpen),
             updateStatus: jest.fn().mockResolvedValue(mockComplaintInProgress),
+          },
+        },
+        {
+          provide: RealtimeGateway,
+          useValue: {
+            broadcastLiveEvent: jest.fn(),
+            broadcastKpiRefresh: jest.fn(),
           },
         },
       ],

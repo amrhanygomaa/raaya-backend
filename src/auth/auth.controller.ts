@@ -456,8 +456,11 @@ export class AuthController {
         user: {
           userId: payload.sub ?? '',
           email: payload.email ?? email,
+          name: payload.name ?? '',
           roles: groups.length > 0 ? groups : customRole ? [customRole] : [],
           facilityId: payload['custom:facilityId'] ?? '',
+          facilityName: payload['custom:facilityName'] ?? '',
+          linkedResidentId: payload['custom:linkedResidentId'] ?? '',
         },
       };
     } catch (error) {
