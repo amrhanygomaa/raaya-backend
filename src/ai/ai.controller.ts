@@ -16,6 +16,14 @@ import {
   InvokeModelCommand,
 } from '@aws-sdk/client-bedrock-runtime';
 import {
+  PollyClient,
+  SynthesizeSpeechCommand,
+  Engine,
+  LanguageCode,
+  OutputFormat,
+  TextType,
+} from '@aws-sdk/client-polly';
+import {
   ApiBody,
   ApiOperation,
   ApiParam,
@@ -427,6 +435,88 @@ residentId: ${residentId}
       language,
       memory,
     };
+  }
+
+  @Post('speech')
+  @ApiOperation({
+    summary: 'Text-to-speech using AWS Polly Neural (Hala – Arabic)',
+    description:
+      'Converts Arabic text to natural-sounding speech using AWS Polly Neural engine. ' +
+      'Returns base64-encoded MP3 audio.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['text'],
+      properties: {
+        text: { type: 'string', example: 'أهلاً، كيف حالك اليوم؟' },
+        voiceId: { type: 'string', example: 'Hala', default: 'Hala' },
+        engine: { type: 'string', example: 'neural', default: 'neural' },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Base64-encoded MP3 audio.' })
+  @ApiResponse({ status: 400, description: 'text is required.' })
+  @ApiResponse({ status: 503, description: 'Polly unavailable.' })
+  async synthesizeSpeech(@Body() body: unknown) {
+    if (!isRecord(body)) {
+      throw new BadRequestException('body must be an object');
+    }
+
+    const text = normalizeInlineText(body.text);
+    if (!text) {
+      throw new BadRequestException('text is required');
+    }
+
+    // Hala = Arabic female neural voice (natural Egyptian-flavored Arabic)
+    const voiceId =
+      typeof body.voiceId === 'string' ? body.voiceId : 'Hala';
+    const engine: Engine =
+      body.engine === 'standard' ? Engine.STANDARD : Engine.NEURAL;
+
+    const polly = new PollyClient({
+      region: process.env.AWS_REGION ?? 'us-east-1',
+    });
+
+    try {
+      const command = new SynthesizeSpeechCommand({
+        Text: text,
+        VoiceId: voiceId as any,
+        Engine: engine,
+        LanguageCode: LanguageCode.arb,
+        OutputFormat: OutputFormat.MP3,
+        TextType: TextType.TEXT,
+      });
+
+      const response = await polly.send(command);
+
+      if (!response.AudioStream) {
+        throw new ServiceUnavailableException('Polly returned no audio');
+      }
+
+      // AudioStream is a readable stream — collect all chunks
+      const chunks: Uint8Array[] = [];
+      for await (const chunk of response.AudioStream as AsyncIterable<Uint8Array>) {
+        chunks.push(chunk);
+      }
+      const audioBuffer = Buffer.concat(chunks);
+      const audioBase64 = audioBuffer.toString('base64');
+
+      return {
+        provider: 'aws-polly',
+        voiceId,
+        engine,
+        contentType: 'audio/mpeg',
+        audioBase64,
+      };
+    } catch (error) {
+      if (error instanceof ServiceUnavailableException) throw error;
+      console.error(
+        '[AI] Polly TTS failed:',
+        error instanceof Error ? error.message : error,
+      );
+      throw new ServiceUnavailableException('Polly TTS failed');
+    }
   }
 
   private throwAiUnavailable(reason: 'ai_disabled' | 'bedrock_error'): never {
