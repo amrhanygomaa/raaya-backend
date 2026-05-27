@@ -22,8 +22,8 @@ describe('AI guardrails', () => {
 
     expect(prompt).toContain('أحمد');
     expect(prompt).toContain('حاسس بقلق شوية');
-    expect(prompt).toContain('لا تقدم أي نصائح طبية');
-    expect(prompt).toContain('يتكلم مع الممرضة');
+    expect(prompt).toContain('لا نصايح طبية خالص');
+    expect(prompt).toContain('كلم الممرضة وقولها');
   });
 
   it('builds a companion prompt with conversation history', () => {
@@ -50,7 +50,7 @@ describe('AI guardrails', () => {
 
     expect(prompt).toContain('ذاكرة أحمد');
     expect(prompt).toContain('بيحب أم كلثوم');
-    expect(prompt).toContain('لا تخترع تفاصيل غير مكتوبة');
+    expect(prompt).toContain('بدون اختراع ذكريات جديدة');
   });
 
   it('builds a companion prompt with different languages', () => {
