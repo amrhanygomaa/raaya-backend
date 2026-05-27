@@ -24,6 +24,12 @@ import {
   TextType,
 } from '@aws-sdk/client-polly';
 import {
+  TranscribeStreamingClient,
+  StartStreamTranscriptionCommand,
+  LanguageCode as TranscribeLanguageCode,
+  MediaEncoding,
+} from '@aws-sdk/client-transcribe-streaming';
+import {
   ApiBody,
   ApiOperation,
   ApiParam,
@@ -631,5 +637,239 @@ residentId: ${residentId}
       );
       this.throwAiUnavailable('bedrock_error');
     }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  //  POST /ai/voice-chat
+  //  End-to-end voice pipeline: STT (Transcribe) → AI (Bedrock) → TTS (Polly)
+  //  Body: { audioBase64, sampleRate?, residentName?, residentId? }
+  //  Returns: { transcript, reply, audioBase64, contentType }
+  // ─────────────────────────────────────────────────────────────────────
+  @Post('voice-chat')
+  @ApiOperation({
+    summary: 'Full voice pipeline (STT → AI → TTS) — server-side, no device-locale needed',
+    description:
+      'Accepts recorded PCM audio (base64), transcribes it with AWS Transcribe Streaming, ' +
+      'sends transcript to Bedrock for a reply, then synthesizes the reply with Polly Hala. ' +
+      'Returns transcript, reply text, and base64 MP3 audio of the reply.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['audioBase64'],
+      properties: {
+        audioBase64: {
+          type: 'string',
+          description: 'Base64-encoded PCM 16-bit mono audio',
+        },
+        sampleRate: { type: 'number', example: 16000, default: 16000 },
+        residentName: { type: 'string', example: 'Ahmad' },
+        residentId: { type: 'string' },
+        language: { type: 'string', example: 'ar-eg', default: 'ar-eg' },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Voice round-trip result.' })
+  @ApiResponse({ status: 400, description: 'audioBase64 is required.' })
+  @ApiResponse({ status: 503, description: 'Pipeline unavailable.' })
+  async voiceChat(@Body() body: unknown) {
+    if (!isRecord(body)) {
+      throw new BadRequestException('body must be an object');
+    }
+    const audioBase64 = typeof body.audioBase64 === 'string' ? body.audioBase64 : '';
+    if (!audioBase64) {
+      throw new BadRequestException('audioBase64 is required');
+    }
+    const sampleRate =
+      typeof body.sampleRate === 'number' && body.sampleRate > 0
+        ? Math.floor(body.sampleRate)
+        : 16000;
+    const residentName =
+      getStringField(body, 'residentName', 'name') ?? 'صديقنا';
+    const residentId =
+      getStringField(body, 'residentId', 'userId') ?? null;
+    const language = getStringField(body, 'language', 'locale') ?? 'ar-eg';
+
+    const aiEnabled = process.env.AI_ENABLED === 'true';
+    if (!aiEnabled) {
+      throw new ServiceUnavailableException('AI_ENABLED is not true');
+    }
+
+    // ── 1) STT — AWS Transcribe Streaming ─────────────────────────────
+    let transcript = '';
+    try {
+      const audioBytes = Buffer.from(audioBase64, 'base64');
+      console.log(
+        `[AI] voice-chat received: ${audioBytes.length} bytes, sampleRate=${sampleRate}`,
+      );
+
+      const transcribeClient = new TranscribeStreamingClient({
+        region: process.env.AWS_REGION ?? 'us-east-1',
+      });
+
+      const chunkSize = 8192;
+      const audioStream = async function* () {
+        for (let i = 0; i < audioBytes.length; i += chunkSize) {
+          yield {
+            AudioEvent: {
+              AudioChunk: audioBytes.subarray(
+                i,
+                Math.min(i + chunkSize, audioBytes.length),
+              ),
+            },
+          };
+        }
+      };
+
+      const transcribeCommand = new StartStreamTranscriptionCommand({
+        LanguageCode: TranscribeLanguageCode.AR_SA,
+        MediaEncoding: MediaEncoding.PCM,
+        MediaSampleRateHertz: sampleRate,
+        AudioStream: audioStream(),
+      });
+
+      const transcribeResponse =
+        await transcribeClient.send(transcribeCommand);
+
+      if (transcribeResponse.TranscriptResultStream) {
+        for await (const event of transcribeResponse.TranscriptResultStream) {
+          if (event.TranscriptEvent) {
+            const results = event.TranscriptEvent.Transcript?.Results ?? [];
+            for (const result of results) {
+              if (!result.IsPartial) {
+                const text = result.Alternatives?.[0]?.Transcript ?? '';
+                if (text) transcript += `${text} `;
+              }
+            }
+          }
+        }
+      }
+      transcript = transcript.trim();
+      console.log(`[AI] transcript: "${transcript}"`);
+
+      if (!transcript) {
+        return {
+          transcript: '',
+          reply: '',
+          audioBase64: '',
+          contentType: 'audio/mpeg',
+          error: 'no_speech_detected',
+        };
+      }
+    } catch (error) {
+      console.error(
+        '[AI] Transcribe failed:',
+        error instanceof Error ? error.message : error,
+      );
+      throw new ServiceUnavailableException('Transcribe failed');
+    }
+
+    // ── 2) AI — Bedrock Claude ────────────────────────────────────────
+    let reply = '';
+    try {
+      if (this.pool && residentId) {
+        const res = await this.pool.query<Record<string, unknown>>(
+          `SELECT facts FROM ai_resident_memory WHERE resident_id = $1`,
+          [residentId],
+        );
+        const memory = (res.rows[0]?.facts as string[]) ?? [];
+        const sentiment = analyzeSentiment(transcript);
+        const prompt = buildCompanionPrompt({
+          residentName,
+          message: transcript,
+          language,
+          memory,
+          sentiment,
+        });
+        const command = new InvokeModelCommand({
+          modelId: 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
+          body: JSON.stringify({
+            anthropic_version: 'bedrock-2023-05-31',
+            max_tokens: 60,
+            messages: [{ role: 'user', content: prompt }],
+          }),
+          contentType: 'application/json',
+          accept: 'application/json',
+        });
+        const response = await this.client.send(command);
+        if (response.body) {
+          const result: unknown = JSON.parse(
+            Buffer.from(response.body).toString(),
+          );
+          reply = getClaudeReply(result) ?? '';
+        }
+      } else {
+        const sentiment = analyzeSentiment(transcript);
+        const prompt = buildCompanionPrompt({
+          residentName,
+          message: transcript,
+          language,
+          sentiment,
+        });
+        const command = new InvokeModelCommand({
+          modelId: 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
+          body: JSON.stringify({
+            anthropic_version: 'bedrock-2023-05-31',
+            max_tokens: 60,
+            messages: [{ role: 'user', content: prompt }],
+          }),
+          contentType: 'application/json',
+          accept: 'application/json',
+        });
+        const response = await this.client.send(command);
+        if (response.body) {
+          const result: unknown = JSON.parse(
+            Buffer.from(response.body).toString(),
+          );
+          reply = getClaudeReply(result) ?? '';
+        }
+      }
+      reply = sanitizeAiReply(reply);
+      console.log(`[AI] reply: "${reply}"`);
+    } catch (error) {
+      console.error(
+        '[AI] Bedrock failed:',
+        error instanceof Error ? error.message : error,
+      );
+      throw new ServiceUnavailableException('Bedrock failed');
+    }
+
+    // ── 3) TTS — Polly Hala Neural ────────────────────────────────────
+    let replyAudioBase64 = '';
+    try {
+      const polly = new PollyClient({
+        region: process.env.AWS_REGION ?? 'us-east-1',
+      });
+      const ssmlText = `<speak><prosody rate="95%" pitch="+2%">${reply}</prosody></speak>`;
+      const pollyCommand = new SynthesizeSpeechCommand({
+        Text: ssmlText,
+        VoiceId: 'Hala' as any,
+        Engine: Engine.NEURAL,
+        LanguageCode: LanguageCode.arb,
+        OutputFormat: OutputFormat.MP3,
+        TextType: TextType.SSML,
+      });
+      const pollyResponse = await polly.send(pollyCommand);
+      if (pollyResponse.AudioStream) {
+        const chunks: Uint8Array[] = [];
+        for await (const chunk of pollyResponse.AudioStream as AsyncIterable<Uint8Array>) {
+          chunks.push(chunk);
+        }
+        replyAudioBase64 = Buffer.concat(chunks).toString('base64');
+      }
+    } catch (error) {
+      console.error(
+        '[AI] Polly failed:',
+        error instanceof Error ? error.message : error,
+      );
+      // مش هنرمي error — هنرجع النص بدون صوت
+    }
+
+    return {
+      transcript,
+      reply,
+      audioBase64: replyAudioBase64,
+      contentType: 'audio/mpeg',
+    };
   }
 }
