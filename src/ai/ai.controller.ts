@@ -479,13 +479,16 @@ residentId: ${residentId}
     });
 
     try {
+      // SSML wrapping: rate slightly slower + soft breathing pause for natural conversation feel
+      const ssmlText = `<speak><prosody rate="95%" pitch="+2%">${text}</prosody></speak>`;
+
       const command = new SynthesizeSpeechCommand({
-        Text: text,
+        Text: ssmlText,
         VoiceId: voiceId as any,
         Engine: engine,
         LanguageCode: LanguageCode.arb,
         OutputFormat: OutputFormat.MP3,
-        TextType: TextType.TEXT,
+        TextType: TextType.SSML,
       });
 
       const response = await polly.send(command);
@@ -593,7 +596,7 @@ residentId: ${residentId}
       modelId: 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
       body: JSON.stringify({
         anthropic_version: 'bedrock-2023-05-31',
-        max_tokens: 200,
+        max_tokens: 60,
         messages: [{ role: 'user', content: prompt }],
       }),
       contentType: 'application/json',
