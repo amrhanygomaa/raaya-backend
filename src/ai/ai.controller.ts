@@ -475,8 +475,7 @@ residentId: ${residentId}
     }
 
     // Hala = Arabic female neural voice (natural Egyptian-flavored Arabic)
-    const voiceId =
-      typeof body.voiceId === 'string' ? body.voiceId : 'Hala';
+    const voiceId = typeof body.voiceId === 'string' ? body.voiceId : 'Hala';
     const engine: Engine =
       body.engine === 'standard' ? Engine.STANDARD : Engine.NEURAL;
 
@@ -647,7 +646,8 @@ residentId: ${residentId}
   // ─────────────────────────────────────────────────────────────────────
   @Post('voice-chat')
   @ApiOperation({
-    summary: 'Full voice pipeline (STT → AI → TTS) — server-side, no device-locale needed',
+    summary:
+      'Full voice pipeline (STT → AI → TTS) — server-side, no device-locale needed',
     description:
       'Accepts recorded PCM audio (base64), transcribes it with AWS Transcribe Streaming, ' +
       'sends transcript to Bedrock for a reply, then synthesizes the reply with Polly Hala. ' +
@@ -676,7 +676,8 @@ residentId: ${residentId}
     if (!isRecord(body)) {
       throw new BadRequestException('body must be an object');
     }
-    const audioBase64 = typeof body.audioBase64 === 'string' ? body.audioBase64 : '';
+    const audioBase64 =
+      typeof body.audioBase64 === 'string' ? body.audioBase64 : '';
     if (!audioBase64) {
       throw new BadRequestException('audioBase64 is required');
     }
@@ -686,8 +687,7 @@ residentId: ${residentId}
         : 16000;
     const residentName =
       getStringField(body, 'residentName', 'name') ?? 'صديقنا';
-    const residentId =
-      getStringField(body, 'residentId', 'userId') ?? null;
+    const residentId = getStringField(body, 'residentId', 'userId') ?? null;
     const language = getStringField(body, 'language', 'locale') ?? 'ar-eg';
 
     const aiEnabled = process.env.AI_ENABLED === 'true';
@@ -708,6 +708,7 @@ residentId: ${residentId}
       });
 
       const chunkSize = 8192;
+      // eslint-disable-next-line @typescript-eslint/require-await
       const audioStream = async function* () {
         for (let i = 0; i < audioBytes.length; i += chunkSize) {
           yield {
@@ -728,8 +729,7 @@ residentId: ${residentId}
         AudioStream: audioStream(),
       });
 
-      const transcribeResponse =
-        await transcribeClient.send(transcribeCommand);
+      const transcribeResponse = await transcribeClient.send(transcribeCommand);
 
       if (transcribeResponse.TranscriptResultStream) {
         for await (const event of transcribeResponse.TranscriptResultStream) {
@@ -843,7 +843,7 @@ residentId: ${residentId}
       const ssmlText = `<speak><prosody rate="95%" pitch="+2%">${reply}</prosody></speak>`;
       const pollyCommand = new SynthesizeSpeechCommand({
         Text: ssmlText,
-        VoiceId: 'Hala' as any,
+        VoiceId: 'Hala',
         Engine: Engine.NEURAL,
         LanguageCode: LanguageCode.arb,
         OutputFormat: OutputFormat.MP3,
