@@ -152,6 +152,7 @@ jobs:
               -e VOLUNTEER_PUBLIC_LINK_TTL_DAYS=30 \
               -e "AZURE_SPEECH_KEY=${{ secrets.AZURE_SPEECH_KEY }}" \
               -e "AZURE_SPEECH_REGION=${{ secrets.AZURE_SPEECH_REGION }}" \
+              -e "ELEVENLABS_API_KEY=${{ secrets.ELEVENLABS_API_KEY }}" \
               --log-driver awslogs \
               --log-opt awslogs-region=us-east-1 \
               --log-opt awslogs-group=/raaya/backend \

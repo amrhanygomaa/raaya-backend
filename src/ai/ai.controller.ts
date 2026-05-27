@@ -204,7 +204,7 @@ const getLatestUserMessage = (
 };
 
 // ── TTS voices catalog ───────────────────────────────────────────
-type TtsProvider = 'aws-polly' | 'azure';
+type TtsProvider = 'aws-polly' | 'azure' | 'elevenlabs';
 
 interface TtsVoiceMeta {
   voiceId: string;
@@ -215,6 +215,9 @@ interface TtsVoiceMeta {
   engine?: 'neural' | 'standard';
   language: string;
   description: string;
+  // ElevenLabs voices use opaque hex IDs that don't reveal anything; we
+  // keep an optional short label that the picker can show alongside.
+  providerVoiceLabel?: string;
 }
 
 const SUPPORTED_VOICES: ReadonlyArray<TtsVoiceMeta> = [
@@ -290,14 +293,44 @@ const SUPPORTED_VOICES: ReadonlyArray<TtsVoiceMeta> = [
     language: 'ar-SA',
     description: 'Standard Arabic female (Azure neural)',
   },
+  // ElevenLabs (multilingual v2 — handles Arabic with natural prosody).
+  // Voice IDs are opaque hex strings from the ElevenLabs voice library.
+  {
+    voiceId: '21m00Tcm4TlvDq8ikWAM',
+    displayName: 'Rachel',
+    displayNameAr: 'راشيل',
+    gender: 'female',
+    provider: 'elevenlabs',
+    engine: 'neural',
+    language: 'multilingual',
+    description: 'Warm female multilingual (ElevenLabs)',
+    providerVoiceLabel: 'Rachel',
+  },
+  {
+    voiceId: 'pNInz6obpgDQGcFmaJgB',
+    displayName: 'Adam',
+    displayNameAr: 'آدم',
+    gender: 'male',
+    provider: 'elevenlabs',
+    engine: 'neural',
+    language: 'multilingual',
+    description: 'Deep male multilingual (ElevenLabs)',
+    providerVoiceLabel: 'Adam',
+  },
 ];
 
 const findVoiceMeta = (voiceId: string): TtsVoiceMeta | undefined =>
   SUPPORTED_VOICES.find((v) => v.voiceId === voiceId);
 
-// Azure voices follow the pattern xx-XX-NameNeural; Polly voices are single capitalized words.
-const detectProviderFromVoiceId = (voiceId: string): TtsProvider =>
-  /^[a-z]{2,3}-[A-Z]{2,3}-/.test(voiceId) ? 'azure' : 'aws-polly';
+// Fallback heuristic when the voiceId isn't in the catalog:
+// - Azure voices follow xx-XX-NameNeural
+// - ElevenLabs voice IDs are 20-character hex-ish strings
+// - Polly voices are short capitalized words
+const detectProviderFromVoiceId = (voiceId: string): TtsProvider => {
+  if (/^[a-z]{2,3}-[A-Z]{2,3}-/.test(voiceId)) return 'azure';
+  if (/^[A-Za-z0-9]{20}$/.test(voiceId)) return 'elevenlabs';
+  return 'aws-polly';
+};
 
 const escapeSsmlText = (text: string): string =>
   text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -603,6 +636,29 @@ residentId: ${residentId}
     const provider: TtsProvider =
       meta?.provider ?? detectProviderFromVoiceId(voiceId);
 
+    if (provider === 'elevenlabs') {
+      try {
+        const audioBuffer = await this.synthesizeElevenLabsSpeech(
+          text,
+          voiceId,
+        );
+        return {
+          provider: 'elevenlabs' as const,
+          voiceId,
+          engine: 'neural',
+          contentType: 'audio/mpeg',
+          audioBase64: audioBuffer.toString('base64'),
+        };
+      } catch (error) {
+        if (error instanceof ServiceUnavailableException) throw error;
+        console.error(
+          '[AI] ElevenLabs TTS failed:',
+          error instanceof Error ? error.message : error,
+        );
+        throw new ServiceUnavailableException('ElevenLabs TTS failed');
+      }
+    }
+
     if (provider === 'azure') {
       try {
         const language = meta?.language ?? 'ar-EG';
@@ -684,6 +740,47 @@ residentId: ${residentId}
       );
       throw new ServiceUnavailableException('Polly TTS failed');
     }
+  }
+
+  private async synthesizeElevenLabsSpeech(
+    text: string,
+    voiceId: string,
+  ): Promise<Buffer> {
+    const apiKey = process.env.ELEVENLABS_API_KEY;
+    if (!apiKey) {
+      throw new ServiceUnavailableException(
+        'ElevenLabs not configured (ELEVENLABS_API_KEY missing)',
+      );
+    }
+
+    const response = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+      {
+        method: 'POST',
+        headers: {
+          'xi-api-key': apiKey,
+          'Content-Type': 'application/json',
+          Accept: 'audio/mpeg',
+        },
+        body: JSON.stringify({
+          text,
+          model_id: 'eleven_multilingual_v2',
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.75,
+          },
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const errBody = await response.text().catch(() => '');
+      throw new ServiceUnavailableException(
+        `ElevenLabs TTS ${response.status}: ${errBody.slice(0, 200)}`,
+      );
+    }
+
+    return Buffer.from(await response.arrayBuffer());
   }
 
   private async synthesizeAzureSpeech(
