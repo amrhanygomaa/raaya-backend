@@ -293,19 +293,9 @@ const SUPPORTED_VOICES: ReadonlyArray<TtsVoiceMeta> = [
     language: 'ar-SA',
     description: 'Standard Arabic female (Azure neural)',
   },
-  // ElevenLabs (multilingual v2 — handles Arabic with natural prosody).
-  // Voice IDs are opaque hex strings from the ElevenLabs voice library.
-  {
-    voiceId: '21m00Tcm4TlvDq8ikWAM',
-    displayName: 'Rachel',
-    displayNameAr: 'راشيل',
-    gender: 'female',
-    provider: 'elevenlabs',
-    engine: 'neural',
-    language: 'multilingual',
-    description: 'Warm female multilingual (ElevenLabs)',
-    providerVoiceLabel: 'Rachel',
-  },
+  // ElevenLabs premade voices (work on Free tier; library voices need a paid plan).
+  // Adam is multilingual — handles Arabic but with a non-Egyptian accent. Polly's
+  // Hala/Zayd are the recommended Egyptian-accent defaults.
   {
     voiceId: 'pNInz6obpgDQGcFmaJgB',
     displayName: 'Adam',
@@ -314,7 +304,7 @@ const SUPPORTED_VOICES: ReadonlyArray<TtsVoiceMeta> = [
     provider: 'elevenlabs',
     engine: 'neural',
     language: 'multilingual',
-    description: 'Deep male multilingual (ElevenLabs)',
+    description: 'Deep male multilingual (ElevenLabs premade)',
     providerVoiceLabel: 'Adam',
   },
 ];
