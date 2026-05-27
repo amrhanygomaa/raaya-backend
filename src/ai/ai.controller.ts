@@ -203,6 +203,105 @@ const getLatestUserMessage = (
   return { message: null, history: normalizedMessages.slice(-12) };
 };
 
+// ── TTS voices catalog ───────────────────────────────────────────
+type TtsProvider = 'aws-polly' | 'azure';
+
+interface TtsVoiceMeta {
+  voiceId: string;
+  displayName: string;
+  displayNameAr: string;
+  gender: 'male' | 'female';
+  provider: TtsProvider;
+  engine?: 'neural' | 'standard';
+  language: string;
+  description: string;
+}
+
+const SUPPORTED_VOICES: ReadonlyArray<TtsVoiceMeta> = [
+  // AWS Polly
+  {
+    voiceId: 'Zayd',
+    displayName: 'Zayd',
+    displayNameAr: 'زيد',
+    gender: 'male',
+    provider: 'aws-polly',
+    engine: 'neural',
+    language: 'arb',
+    description: 'Egyptian Arabic male (Polly neural)',
+  },
+  {
+    voiceId: 'Hala',
+    displayName: 'Hala',
+    displayNameAr: 'هالة',
+    gender: 'female',
+    provider: 'aws-polly',
+    engine: 'neural',
+    language: 'arb',
+    description: 'Egyptian Arabic female (Polly neural)',
+  },
+  {
+    voiceId: 'Zeina',
+    displayName: 'Zeina',
+    displayNameAr: 'زينة',
+    gender: 'female',
+    provider: 'aws-polly',
+    engine: 'standard',
+    language: 'arb',
+    description: 'Modern Standard Arabic female (Polly standard)',
+  },
+  // Azure Cognitive Services Speech
+  {
+    voiceId: 'ar-EG-SalmaNeural',
+    displayName: 'Salma',
+    displayNameAr: 'سلمى',
+    gender: 'female',
+    provider: 'azure',
+    engine: 'neural',
+    language: 'ar-EG',
+    description: 'Egyptian Arabic female (Azure neural)',
+  },
+  {
+    voiceId: 'ar-EG-ShakirNeural',
+    displayName: 'Shakir',
+    displayNameAr: 'شاكر',
+    gender: 'male',
+    provider: 'azure',
+    engine: 'neural',
+    language: 'ar-EG',
+    description: 'Egyptian Arabic male (Azure neural)',
+  },
+  {
+    voiceId: 'ar-SA-HamedNeural',
+    displayName: 'Hamed',
+    displayNameAr: 'حامد',
+    gender: 'male',
+    provider: 'azure',
+    engine: 'neural',
+    language: 'ar-SA',
+    description: 'Standard Arabic male (Azure neural)',
+  },
+  {
+    voiceId: 'ar-SA-ZariyahNeural',
+    displayName: 'Zariyah',
+    displayNameAr: 'زارية',
+    gender: 'female',
+    provider: 'azure',
+    engine: 'neural',
+    language: 'ar-SA',
+    description: 'Standard Arabic female (Azure neural)',
+  },
+];
+
+const findVoiceMeta = (voiceId: string): TtsVoiceMeta | undefined =>
+  SUPPORTED_VOICES.find((v) => v.voiceId === voiceId);
+
+// Azure voices follow the pattern xx-XX-NameNeural; Polly voices are single capitalized words.
+const detectProviderFromVoiceId = (voiceId: string): TtsProvider =>
+  /^[a-z]{2,3}-[A-Z]{2,3}-/.test(voiceId) ? 'azure' : 'aws-polly';
+
+const escapeSsmlText = (text: string): string =>
+  text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
 @ApiTags('AI')
 @Controller('ai')
 export class AiController {
@@ -443,12 +542,26 @@ residentId: ${residentId}
     };
   }
 
+  @Get('voices')
+  @ApiOperation({
+    summary: 'List supported TTS voices (AWS Polly + Azure)',
+    description:
+      'Returns the catalog of voices the /ai/speech endpoint can synthesize, ' +
+      'with provider, gender, language, and Arabic display name. The client uses ' +
+      'this to build a voice-picker UI.',
+  })
+  @ApiResponse({ status: 200 })
+  listVoices() {
+    return { voices: SUPPORTED_VOICES };
+  }
+
   @Post('speech')
   @ApiOperation({
-    summary: 'Text-to-speech using AWS Polly Neural (Hala – Arabic)',
+    summary: 'Text-to-speech (AWS Polly or Azure, auto-routed by voiceId)',
     description:
-      'Converts Arabic text to natural-sounding speech using AWS Polly Neural engine. ' +
-      'Returns base64-encoded MP3 audio.',
+      'Converts Arabic text to natural-sounding speech. The provider is selected ' +
+      'automatically from the voiceId — Polly for Zayd/Hala/Zeina, Azure for ' +
+      'ar-EG-* and ar-SA-* voices. Returns base64-encoded MP3 audio.',
   })
   @ApiBody({
     schema: {
@@ -456,14 +569,25 @@ residentId: ${residentId}
       required: ['text'],
       properties: {
         text: { type: 'string', example: 'أهلاً، كيف حالك اليوم؟' },
-        voiceId: { type: 'string', example: 'Hala', default: 'Hala' },
-        engine: { type: 'string', example: 'neural', default: 'neural' },
+        voiceId: {
+          type: 'string',
+          example: 'ar-EG-SalmaNeural',
+          default: 'Hala',
+          description:
+            'Voice identifier. See GET /ai/voices for the supported list.',
+        },
+        engine: {
+          type: 'string',
+          example: 'neural',
+          description:
+            'Polly engine override (neural | standard). Ignored for Azure voices.',
+        },
       },
     },
   })
   @ApiResponse({ status: 200, description: 'Base64-encoded MP3 audio.' })
   @ApiResponse({ status: 400, description: 'text is required.' })
-  @ApiResponse({ status: 503, description: 'Polly unavailable.' })
+  @ApiResponse({ status: 503, description: 'TTS provider unavailable.' })
   async synthesizeSpeech(@Body() body: unknown) {
     if (!isRecord(body)) {
       throw new BadRequestException('body must be an object');
@@ -474,10 +598,46 @@ residentId: ${residentId}
       throw new BadRequestException('text is required');
     }
 
-    // Hala = Arabic female neural voice (natural Egyptian-flavored Arabic)
     const voiceId = typeof body.voiceId === 'string' ? body.voiceId : 'Hala';
-    const engine: Engine =
-      body.engine === 'standard' ? Engine.STANDARD : Engine.NEURAL;
+    const meta = findVoiceMeta(voiceId);
+    const provider: TtsProvider =
+      meta?.provider ?? detectProviderFromVoiceId(voiceId);
+
+    if (provider === 'azure') {
+      try {
+        const language = meta?.language ?? 'ar-EG';
+        const audioBuffer = await this.synthesizeAzureSpeech(
+          text,
+          voiceId,
+          language,
+        );
+        return {
+          provider: 'azure' as const,
+          voiceId,
+          engine: 'neural',
+          contentType: 'audio/mpeg',
+          audioBase64: audioBuffer.toString('base64'),
+        };
+      } catch (error) {
+        if (error instanceof ServiceUnavailableException) throw error;
+        console.error(
+          '[AI] Azure TTS failed:',
+          error instanceof Error ? error.message : error,
+        );
+        throw new ServiceUnavailableException('Azure TTS failed');
+      }
+    }
+
+    // AWS Polly path. Voice→engine pairing is fixed by Polly:
+    // Zayd/Hala are neural-only, Zeina is standard-only. Use the catalog's
+    // engine when known, otherwise fall back to the request's engine.
+    const engine: Engine = meta?.engine
+      ? meta.engine === 'standard'
+        ? Engine.STANDARD
+        : Engine.NEURAL
+      : body.engine === 'standard'
+        ? Engine.STANDARD
+        : Engine.NEURAL;
 
     const polly = new PollyClient({
       region: process.env.AWS_REGION ?? 'us-east-1',
@@ -486,7 +646,7 @@ residentId: ${residentId}
     try {
       // SSML wrapping: rate slightly slower for a calmer, natural conversation feel.
       // Note: Polly neural voices do not support the prosody `pitch` attribute.
-      const ssmlText = `<speak><prosody rate="95%">${text}</prosody></speak>`;
+      const ssmlText = `<speak><prosody rate="95%">${escapeSsmlText(text)}</prosody></speak>`;
 
       const command = new SynthesizeSpeechCommand({
         Text: ssmlText,
@@ -503,20 +663,18 @@ residentId: ${residentId}
         throw new ServiceUnavailableException('Polly returned no audio');
       }
 
-      // AudioStream is a readable stream — collect all chunks
       const chunks: Uint8Array[] = [];
       for await (const chunk of response.AudioStream as AsyncIterable<Uint8Array>) {
         chunks.push(chunk);
       }
       const audioBuffer = Buffer.concat(chunks);
-      const audioBase64 = audioBuffer.toString('base64');
 
       return {
-        provider: 'aws-polly',
+        provider: 'aws-polly' as const,
         voiceId,
         engine,
         contentType: 'audio/mpeg',
-        audioBase64,
+        audioBase64: audioBuffer.toString('base64'),
       };
     } catch (error) {
       if (error instanceof ServiceUnavailableException) throw error;
@@ -526,6 +684,48 @@ residentId: ${residentId}
       );
       throw new ServiceUnavailableException('Polly TTS failed');
     }
+  }
+
+  private async synthesizeAzureSpeech(
+    text: string,
+    voiceId: string,
+    language: string,
+  ): Promise<Buffer> {
+    const key = process.env.AZURE_SPEECH_KEY;
+    const region = process.env.AZURE_SPEECH_REGION;
+    if (!key || !region) {
+      throw new ServiceUnavailableException(
+        'Azure Speech not configured (AZURE_SPEECH_KEY / AZURE_SPEECH_REGION missing)',
+      );
+    }
+
+    const ssml =
+      `<speak version="1.0" xml:lang="${language}">` +
+      `<voice name="${voiceId}"><prosody rate="-5%">${escapeSsmlText(text)}</prosody></voice>` +
+      `</speak>`;
+
+    const response = await fetch(
+      `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`,
+      {
+        method: 'POST',
+        headers: {
+          'Ocp-Apim-Subscription-Key': key,
+          'Content-Type': 'application/ssml+xml',
+          'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3',
+          'User-Agent': 'raaya-backend',
+        },
+        body: ssml,
+      },
+    );
+
+    if (!response.ok) {
+      const errBody = await response.text().catch(() => '');
+      throw new ServiceUnavailableException(
+        `Azure TTS ${response.status}: ${errBody.slice(0, 200)}`,
+      );
+    }
+
+    return Buffer.from(await response.arrayBuffer());
   }
 
   private throwAiUnavailable(reason: 'ai_disabled' | 'bedrock_error'): never {

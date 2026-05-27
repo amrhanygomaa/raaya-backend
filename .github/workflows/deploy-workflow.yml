@@ -150,6 +150,8 @@ jobs:
               -e S3_MEDIA_PUBLIC_BASE_URL=https://raaya-demo-media.s3.amazonaws.com \
               -e VOLUNTEER_PUBLIC_BASE_URL=https://api.helpers-tech.com/v \
               -e VOLUNTEER_PUBLIC_LINK_TTL_DAYS=30 \
+              -e "AZURE_SPEECH_KEY=${{ secrets.AZURE_SPEECH_KEY }}" \
+              -e "AZURE_SPEECH_REGION=${{ secrets.AZURE_SPEECH_REGION }}" \
               --log-driver awslogs \
               --log-opt awslogs-region=us-east-1 \
               --log-opt awslogs-group=/raaya/backend \
