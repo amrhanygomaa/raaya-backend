@@ -484,8 +484,9 @@ residentId: ${residentId}
     });
 
     try {
-      // SSML wrapping: rate slightly slower + soft breathing pause for natural conversation feel
-      const ssmlText = `<speak><prosody rate="95%" pitch="+2%">${text}</prosody></speak>`;
+      // SSML wrapping: rate slightly slower for a calmer, natural conversation feel.
+      // Note: Polly neural voices do not support the prosody `pitch` attribute.
+      const ssmlText = `<speak><prosody rate="95%">${text}</prosody></speak>`;
 
       const command = new SynthesizeSpeechCommand({
         Text: ssmlText,
@@ -840,7 +841,7 @@ residentId: ${residentId}
       const polly = new PollyClient({
         region: process.env.AWS_REGION ?? 'us-east-1',
       });
-      const ssmlText = `<speak><prosody rate="95%" pitch="+2%">${reply}</prosody></speak>`;
+      const ssmlText = `<speak><prosody rate="95%">${reply}</prosody></speak>`;
       const pollyCommand = new SynthesizeSpeechCommand({
         Text: ssmlText,
         VoiceId: 'Hala',
