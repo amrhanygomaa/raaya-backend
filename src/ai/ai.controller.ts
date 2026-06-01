@@ -9,7 +9,7 @@ import {
   Post,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { createSign } from 'node:crypto';
+import { createPrivateKey, createSign } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { Pool } from 'pg';
 import { PG_POOL } from '../database/database.module';
@@ -985,9 +985,14 @@ residentId: ${residentId}
       }),
     );
     const unsignedJwt = `${header}.${payload}`;
-    const signature = createSign('RSA-SHA256')
+    const privateKeyObject = createPrivateKey({
+      key: account.private_key,
+      format: 'pem',
+      type: 'pkcs8',
+    });
+    const signature = createSign('SHA256')
       .update(unsignedJwt)
-      .sign(account.private_key);
+      .sign(privateKeyObject);
     const assertion = `${unsignedJwt}.${base64Url(signature)}`;
 
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
