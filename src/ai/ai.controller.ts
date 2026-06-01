@@ -9,6 +9,8 @@ import {
   Post,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { createSign } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { Pool } from 'pg';
 import { PG_POOL } from '../database/database.module';
 import {
@@ -204,7 +206,7 @@ const getLatestUserMessage = (
 };
 
 // ── TTS voices catalog ───────────────────────────────────────────
-type TtsProvider = 'aws-polly' | 'azure' | 'elevenlabs';
+type TtsProvider = 'aws-polly' | 'azure' | 'elevenlabs' | 'google-gemini-tts';
 
 interface TtsVoiceMeta {
   voiceId: string;
@@ -218,6 +220,12 @@ interface TtsVoiceMeta {
   // ElevenLabs voices use opaque hex IDs that don't reveal anything; we
   // keep an optional short label that the picker can show alongside.
   providerVoiceLabel?: string;
+}
+
+interface GoogleServiceAccount {
+  client_email: string;
+  private_key: string;
+  project_id?: string;
 }
 
 const SUPPORTED_VOICES: ReadonlyArray<TtsVoiceMeta> = [
@@ -307,6 +315,16 @@ const SUPPORTED_VOICES: ReadonlyArray<TtsVoiceMeta> = [
     description: 'Deep male multilingual (ElevenLabs premade)',
     providerVoiceLabel: 'Adam',
   },
+  {
+    voiceId: 'Kore',
+    displayName: 'Kore',
+    displayNameAr: 'كوري',
+    gender: 'female',
+    provider: 'google-gemini-tts',
+    engine: 'neural',
+    language: 'ar-EG',
+    description: 'Google Cloud Gemini 2.5 Pro TTS expressive voice',
+  },
 ];
 
 const findVoiceMeta = (voiceId: string): TtsVoiceMeta | undefined =>
@@ -322,13 +340,49 @@ const detectProviderFromVoiceId = (voiceId: string): TtsProvider => {
   return 'aws-polly';
 };
 
+const normalizeRequestedTtsProvider = (value: unknown): TtsProvider | null => {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return null;
+  if (
+    normalized === 'google-cloud-gemini-tts' ||
+    normalized === 'google-gemini-tts' ||
+    normalized === 'gemini-tts' ||
+    normalized === 'google'
+  ) {
+    return 'google-gemini-tts';
+  }
+  if (normalized === 'aws-polly' || normalized === 'polly') {
+    return 'aws-polly';
+  }
+  if (normalized === 'azure') {
+    return 'azure';
+  }
+  if (normalized === 'elevenlabs') {
+    return 'elevenlabs';
+  }
+  return null;
+};
+
 const escapeSsmlText = (text: string): string =>
   text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+const base64Url = (value: string | Buffer): string =>
+  Buffer.from(value)
+    .toString('base64')
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
 
 @ApiTags('AI')
 @Controller('ai')
 export class AiController {
   private readonly client: AiModelClient;
+  private googleTtsToken: {
+    accessToken: string;
+    expiresAtMs: number;
+  } | null = null;
+  private googleServiceAccount: GoogleServiceAccount | null | undefined;
 
   constructor(
     @Optional() @Inject(AI_MODEL_CLIENT) client?: AiModelClient,
@@ -567,7 +621,7 @@ residentId: ${residentId}
 
   @Get('voices')
   @ApiOperation({
-    summary: 'List supported TTS voices (AWS Polly + Azure)',
+    summary: 'List supported TTS voices (AWS Polly + Azure + Gemini-TTS)',
     description:
       'Returns the catalog of voices the /ai/speech endpoint can synthesize, ' +
       'with provider, gender, language, and Arabic display name. The client uses ' +
@@ -580,11 +634,11 @@ residentId: ${residentId}
 
   @Post('speech')
   @ApiOperation({
-    summary: 'Text-to-speech (AWS Polly or Azure, auto-routed by voiceId)',
+    summary:
+      'Text-to-speech (Google Cloud Gemini-TTS, AWS Polly, Azure, or ElevenLabs)',
     description:
       'Converts Arabic text to natural-sounding speech. The provider is selected ' +
-      'automatically from the voiceId — Polly for Zayd/Hala/Zeina, Azure for ' +
-      'ar-EG-* and ar-SA-* voices. Returns base64-encoded MP3 audio.',
+      'from provider or automatically from the voiceId. Returns base64-encoded audio.',
   })
   @ApiBody({
     schema: {
@@ -594,10 +648,26 @@ residentId: ${residentId}
         text: { type: 'string', example: 'أهلاً، كيف حالك اليوم؟' },
         voiceId: {
           type: 'string',
-          example: 'ar-EG-SalmaNeural',
-          default: 'Hala',
+          example: 'Kore',
+          default: 'Kore',
           description:
             'Voice identifier. See GET /ai/voices for the supported list.',
+        },
+        provider: {
+          type: 'string',
+          example: 'google-cloud-gemini-tts',
+          description:
+            'Optional provider override: google-cloud-gemini-tts, aws-polly, azure, elevenlabs.',
+        },
+        model: {
+          type: 'string',
+          example: 'gemini-2.5-pro-tts',
+          description: 'Gemini-TTS model name when provider is Google.',
+        },
+        prompt: {
+          type: 'string',
+          example: 'تحدث بالعربية المصرية بلهجة طبيعية ودافئة ومطمئنة.',
+          description: 'Gemini-TTS style/accent/emotion instructions.',
         },
         engine: {
           type: 'string',
@@ -621,10 +691,41 @@ residentId: ${residentId}
       throw new BadRequestException('text is required');
     }
 
-    const voiceId = typeof body.voiceId === 'string' ? body.voiceId : 'Hala';
+    const voiceId =
+      typeof body.voiceName === 'string'
+        ? body.voiceName
+        : typeof body.voiceId === 'string'
+          ? body.voiceId
+          : 'Hala';
     const meta = findVoiceMeta(voiceId);
     const provider: TtsProvider =
-      meta?.provider ?? detectProviderFromVoiceId(voiceId);
+      normalizeRequestedTtsProvider(body.provider) ??
+      meta?.provider ??
+      detectProviderFromVoiceId(voiceId);
+
+    if (provider === 'google-gemini-tts') {
+      try {
+        const audioBuffer = await this.synthesizeGoogleGeminiSpeech(
+          text,
+          voiceId,
+          body,
+        );
+        return {
+          provider: 'google-cloud-gemini-tts' as const,
+          voiceId,
+          engine: 'gemini-tts',
+          contentType: 'audio/mpeg',
+          audioBase64: audioBuffer.toString('base64'),
+        };
+      } catch (error) {
+        if (error instanceof ServiceUnavailableException) throw error;
+        console.error(
+          '[AI] Google Gemini-TTS failed:',
+          error instanceof Error ? error.message : error,
+        );
+        throw new ServiceUnavailableException('Google Gemini-TTS failed');
+      }
+    }
 
     if (provider === 'elevenlabs') {
       try {
@@ -730,6 +831,198 @@ residentId: ${residentId}
       );
       throw new ServiceUnavailableException('Polly TTS failed');
     }
+  }
+
+  private async synthesizeGoogleGeminiSpeech(
+    text: string,
+    voiceId: string,
+    body: Record<string, unknown>,
+  ): Promise<Buffer> {
+    const model =
+      getStringField(body, 'model', 'modelName') ?? 'gemini-2.5-pro-tts';
+    const languageCode =
+      getStringField(body, 'languageCode', 'locale') ?? 'ar-EG';
+    const audioEncoding =
+      getStringField(body, 'audioEncoding')?.toUpperCase() ?? 'MP3';
+    const prompt =
+      getStringField(body, 'prompt', 'voiceInstructions') ??
+      'تحدث بالعربية المصرية بلهجة طبيعية ودافئة ومطمئنة، بسرعة متوسطة وبمشاعر هادئة ومناسبة لكبار السن.';
+
+    const accessToken = await this.getGoogleCloudAccessToken();
+    const location =
+      process.env.GOOGLE_CLOUD_TTS_LOCATION ??
+      process.env.GOOGLE_CLOUD_REGION ??
+      'global';
+    const apiEndpoint =
+      location === 'global'
+        ? 'https://texttospeech.googleapis.com/v1/text:synthesize'
+        : `https://${location}-texttospeech.googleapis.com/v1/text:synthesize`;
+    const projectId = this.getGoogleCloudProjectId();
+
+    const response = await fetch(apiEndpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        ...(projectId ? { 'x-goog-user-project': projectId } : {}),
+      },
+      body: JSON.stringify({
+        input: {
+          prompt,
+          text,
+        },
+        voice: {
+          languageCode,
+          name: voiceId,
+          model_name: model,
+        },
+        audioConfig: {
+          audioEncoding,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errBody = await response.text().catch(() => '');
+      throw new ServiceUnavailableException(
+        `Google Gemini-TTS ${response.status}: ${errBody.slice(0, 500)}`,
+      );
+    }
+
+    const data = (await response.json().catch(() => null)) as Record<
+      string,
+      unknown
+    > | null;
+    const audioContent =
+      data && typeof data.audioContent === 'string' ? data.audioContent : null;
+    if (!audioContent) {
+      throw new ServiceUnavailableException(
+        'Google Gemini-TTS returned no audioContent',
+      );
+    }
+
+    return Buffer.from(audioContent, 'base64');
+  }
+
+  private getGoogleCloudProjectId(): string | null {
+    const envProject =
+      normalizeInlineText(process.env.GOOGLE_CLOUD_PROJECT) ??
+      normalizeInlineText(process.env.GOOGLE_PROJECT_ID);
+    if (envProject) return envProject;
+    return this.loadGoogleServiceAccount()?.project_id ?? null;
+  }
+
+  private loadGoogleServiceAccount(): GoogleServiceAccount | null {
+    if (this.googleServiceAccount !== undefined) {
+      return this.googleServiceAccount;
+    }
+
+    const inline = normalizeInlineText(
+      process.env.GOOGLE_CLOUD_SERVICE_ACCOUNT_JSON,
+    );
+    const credentialsPath = normalizeInlineText(
+      process.env.GOOGLE_APPLICATION_CREDENTIALS,
+    );
+
+    let raw: string | null = inline;
+    if (!raw && credentialsPath) {
+      raw = readFileSync(credentialsPath, 'utf8');
+    }
+
+    if (!raw) {
+      this.googleServiceAccount = null;
+      return null;
+    }
+
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const clientEmail = normalizeInlineText(parsed.client_email);
+    const privateKey = normalizeInlineText(parsed.private_key);
+    const projectId = normalizeInlineText(parsed.project_id) ?? undefined;
+    if (!clientEmail || !privateKey) {
+      throw new ServiceUnavailableException(
+        'Google service account is missing client_email or private_key',
+      );
+    }
+
+    this.googleServiceAccount = {
+      client_email: clientEmail,
+      private_key: privateKey.replace(/\\n/g, '\n'),
+      project_id: projectId,
+    };
+    return this.googleServiceAccount;
+  }
+
+  private async getGoogleCloudAccessToken(): Promise<string> {
+    const directToken = normalizeInlineText(
+      process.env.GOOGLE_CLOUD_ACCESS_TOKEN,
+    );
+    if (directToken) return directToken;
+
+    if (
+      this.googleTtsToken &&
+      this.googleTtsToken.expiresAtMs > Date.now() + 60_000
+    ) {
+      return this.googleTtsToken.accessToken;
+    }
+
+    const account = this.loadGoogleServiceAccount();
+    if (!account) {
+      throw new ServiceUnavailableException(
+        'Google Gemini-TTS not configured (set GOOGLE_CLOUD_SERVICE_ACCOUNT_JSON or GOOGLE_APPLICATION_CREDENTIALS)',
+      );
+    }
+
+    const issuedAt = Math.floor(Date.now() / 1000);
+    const header = base64Url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+    const payload = base64Url(
+      JSON.stringify({
+        iss: account.client_email,
+        scope: 'https://www.googleapis.com/auth/cloud-platform',
+        aud: 'https://oauth2.googleapis.com/token',
+        iat: issuedAt,
+        exp: issuedAt + 3600,
+      }),
+    );
+    const unsignedJwt = `${header}.${payload}`;
+    const signature = createSign('RSA-SHA256')
+      .update(unsignedJwt)
+      .sign(account.private_key);
+    const assertion = `${unsignedJwt}.${base64Url(signature)}`;
+
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+        assertion,
+      }),
+    });
+
+    if (!tokenResponse.ok) {
+      const errBody = await tokenResponse.text().catch(() => '');
+      throw new ServiceUnavailableException(
+        `Google OAuth ${tokenResponse.status}: ${errBody.slice(0, 300)}`,
+      );
+    }
+
+    const data = (await tokenResponse.json().catch(() => null)) as Record<
+      string,
+      unknown
+    > | null;
+    const accessToken =
+      data && typeof data.access_token === 'string' ? data.access_token : null;
+    const expiresIn =
+      data && typeof data.expires_in === 'number' ? data.expires_in : 3600;
+    if (!accessToken) {
+      throw new ServiceUnavailableException('Google OAuth returned no token');
+    }
+
+    this.googleTtsToken = {
+      accessToken,
+      expiresAtMs: Date.now() + expiresIn * 1000,
+    };
+    return accessToken;
   }
 
   private async synthesizeElevenLabsSpeech(

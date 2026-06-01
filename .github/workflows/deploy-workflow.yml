@@ -153,6 +153,9 @@ jobs:
               -e "AZURE_SPEECH_KEY=${{ secrets.AZURE_SPEECH_KEY }}" \
               -e "AZURE_SPEECH_REGION=${{ secrets.AZURE_SPEECH_REGION }}" \
               -e "ELEVENLABS_API_KEY=${{ secrets.ELEVENLABS_API_KEY }}" \
+              -e "GOOGLE_CLOUD_PROJECT=${{ secrets.GOOGLE_CLOUD_PROJECT }}" \
+              -e "GOOGLE_CLOUD_TTS_LOCATION=${{ secrets.GOOGLE_CLOUD_TTS_LOCATION }}" \
+              -e "GOOGLE_CLOUD_SERVICE_ACCOUNT_JSON=${{ secrets.GOOGLE_CLOUD_SERVICE_ACCOUNT_JSON }}" \
               --log-driver awslogs \
               --log-opt awslogs-region=us-east-1 \
               --log-opt awslogs-group=/raaya/backend \
