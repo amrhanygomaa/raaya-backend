@@ -135,6 +135,11 @@ jobs:
             docker stop raaya-api 2>/dev/null || true
             docker rm   raaya-api 2>/dev/null || true
 
+            # Write Google service account to file (avoids shell quoting issues with JSON)
+            printf '%s' '${{ secrets.GOOGLE_CLOUD_SERVICE_ACCOUNT_JSON }}' \
+              > /home/ec2-user/.google-sa.json
+            chmod 600 /home/ec2-user/.google-sa.json
+
             # Run new container مع CloudWatch logging
             # The -e flags below override the same keys if also present in
             # /home/ec2-user/.env; this is intentional so the workflow stays
@@ -144,6 +149,7 @@ jobs:
               --restart unless-stopped \
               -p 127.0.0.1:3000:3000 \
               --env-file /home/ec2-user/.env \
+              -v /home/ec2-user/.google-sa.json:/run/secrets/google-sa.json:ro \
               -e DB_NAME=raaya \
               -e DB_USER=raaya_admin \
               -e "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" \
@@ -155,7 +161,7 @@ jobs:
               -e "ELEVENLABS_API_KEY=${{ secrets.ELEVENLABS_API_KEY }}" \
               -e "GOOGLE_CLOUD_PROJECT=${{ secrets.GOOGLE_CLOUD_PROJECT }}" \
               -e "GOOGLE_CLOUD_TTS_LOCATION=${{ secrets.GOOGLE_CLOUD_TTS_LOCATION }}" \
-              -e "GOOGLE_CLOUD_SERVICE_ACCOUNT_JSON=${{ secrets.GOOGLE_CLOUD_SERVICE_ACCOUNT_JSON }}" \
+              -e GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/google-sa.json \
               --log-driver awslogs \
               --log-opt awslogs-region=us-east-1 \
               --log-opt awslogs-group=/raaya/backend \
