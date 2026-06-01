@@ -9,6 +9,8 @@
 
 import { Injectable, Inject, NotFoundException, Logger } from '@nestjs/common';
 import { Pool, QueryResult } from 'pg';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { PG_POOL } from '../database/database.module';
 import { Resident } from './residents.schema';
 import { CreateResidentDto } from './dto/create-resident.dto';
@@ -78,11 +80,27 @@ export interface AuditActor {
   roles?: string[];
 }
 
+export interface ResidentDocumentInfo {
+  id: string;
+  title: string;
+  url: string;
+  createdAt: string;
+}
+
 @Injectable()
 export class ResidentsService {
   private readonly logger = new Logger(ResidentsService.name);
+  private readonly s3: S3Client;
+  private readonly s3Bucket: string;
+  private readonly s3Region: string;
+  private readonly s3Prefix: string;
 
-  constructor(@Inject(PG_POOL) private readonly pool: Pool) {}
+  constructor(@Inject(PG_POOL) private readonly pool: Pool) {
+    this.s3Region = process.env.AWS_REGION ?? 'us-east-1';
+    this.s3 = new S3Client({ region: this.s3Region });
+    this.s3Bucket = process.env.S3_MEDIA_BUCKET ?? 'raaya-demo-media';
+    this.s3Prefix = process.env.S3_MEDIA_PREFIX ?? '';
+  }
 
   // ── AUDIT HELPER ───────────────────────────────────────────────────────────
 
@@ -368,5 +386,121 @@ export class ResidentsService {
     );
 
     return rowToMedicalInfo(result.rows[0]);
+  }
+
+  // ── RESIDENT DOCUMENTS ─────────────────────────────────────────────────────
+
+  async requestDocumentUpload(
+    facilityId: string,
+    userId: string,
+    residentId: string,
+    fileName: string,
+    contentType: string,
+  ): Promise<{ id: string; uploadUrl: string; s3Key: string }> {
+    await this.findOne(facilityId, residentId);
+
+    const safeName = (fileName || 'document').replace(/[^\w.-]/g, '_');
+    const s3Key = [
+      this.s3Prefix,
+      facilityId,
+      'residents',
+      residentId,
+      'documents',
+      `${Date.now()}-${safeName}`,
+    ]
+      .filter(Boolean)
+      .join('/');
+
+    const result = await this.pool.query<Record<string, unknown>>(
+      `INSERT INTO linked_records (resident_id, record_type, title, content, recorded_by)
+       VALUES ($1, 'document', $2, $3::jsonb, $4)
+       RETURNING *`,
+      [
+        residentId,
+        fileName,
+        JSON.stringify({ status: 'pending', s3Key, contentType }),
+        userId,
+      ],
+    );
+
+    const command = new PutObjectCommand({
+      Bucket: this.s3Bucket,
+      Key: s3Key,
+      ContentType: contentType,
+    });
+    const uploadUrl = await getSignedUrl(this.s3, command, { expiresIn: 900 });
+
+    this.logger.log(
+      `Document upload requested for resident ${residentId}: s3://${this.s3Bucket}/${s3Key}`,
+    );
+    return { id: result.rows[0].id as string, uploadUrl, s3Key };
+  }
+
+  async confirmDocumentUpload(
+    facilityId: string,
+    residentId: string,
+    docId: string,
+  ): Promise<ResidentDocumentInfo> {
+    await this.findOne(facilityId, residentId);
+
+    const existing = await this.pool.query<Record<string, unknown>>(
+      `SELECT * FROM linked_records
+       WHERE id = $1 AND resident_id = $2 AND record_type = 'document'`,
+      [docId, residentId],
+    );
+    if (existing.rowCount === 0) {
+      throw new NotFoundException('Document record not found');
+    }
+
+    const row = existing.rows[0];
+    const content = (row.content as Record<string, unknown>) ?? {};
+    const s3Key = (content.s3Key as string) ?? '';
+    const contentType =
+      (content.contentType as string) ?? 'application/octet-stream';
+
+    const publicBase = process.env.S3_MEDIA_PUBLIC_BASE_URL?.replace(/\/$/, '');
+    const url = publicBase
+      ? `${publicBase}/${s3Key}`
+      : `https://${this.s3Bucket}.s3.${this.s3Region}.amazonaws.com/${s3Key}`;
+
+    await this.pool.query(
+      `UPDATE linked_records SET content = $1::jsonb WHERE id = $2`,
+      [JSON.stringify({ status: 'confirmed', s3Key, contentType, url }), docId],
+    );
+
+    this.logger.log(`Document confirmed for resident ${residentId}: ${url}`);
+    return {
+      id: docId,
+      title: row.title as string,
+      url,
+      createdAt:
+        (row.recorded_at as Date)?.toISOString?.() ??
+        (row.recorded_at as string),
+    };
+  }
+
+  async getDocuments(
+    facilityId: string,
+    residentId: string,
+  ): Promise<ResidentDocumentInfo[]> {
+    await this.findOne(facilityId, residentId);
+
+    const result = await this.pool.query<Record<string, unknown>>(
+      `SELECT id, title, content, recorded_at
+       FROM linked_records
+       WHERE resident_id = $1
+         AND record_type = 'document'
+         AND content->>'status' = 'confirmed'
+       ORDER BY recorded_at DESC`,
+      [residentId],
+    );
+
+    return result.rows.map((r) => ({
+      id: r.id as string,
+      title: r.title as string,
+      url: ((r.content as Record<string, unknown>)?.url as string) ?? '',
+      createdAt:
+        (r.recorded_at as Date)?.toISOString?.() ?? (r.recorded_at as string),
+    }));
   }
 }

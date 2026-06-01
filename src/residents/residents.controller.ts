@@ -233,6 +233,64 @@ export class ResidentsController {
     return medicalInfo;
   }
 
+  // ── POST /residents/:id/documents/upload ──────────────────────────────────
+
+  @Post(':id/documents/upload')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('Admin')
+  @ApiOperation({ summary: 'Request a presigned S3 URL to upload a resident document' })
+  @ApiParam({ name: 'id', description: 'Resident UUID' })
+  @ApiResponse({ status: 201, description: 'Presigned URL + document record id.' })
+  async requestDocumentUpload(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() body: { fileName: string; contentType: string },
+  ) {
+    return this.residentsService.requestDocumentUpload(
+      req.user.facilityId,
+      req.user.userId,
+      id,
+      body.fileName ?? 'document',
+      body.contentType ?? 'application/octet-stream',
+    );
+  }
+
+  // ── PATCH /residents/:id/documents/:docId/confirm ──────────────────────────
+
+  @Patch(':id/documents/:docId/confirm')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('Admin')
+  @ApiOperation({ summary: 'Confirm a resident document upload is complete' })
+  @ApiParam({ name: 'id', description: 'Resident UUID' })
+  @ApiParam({ name: 'docId', description: 'Document linked_record UUID' })
+  @ApiResponse({ status: 200, description: 'Confirmed document record.' })
+  @ApiResponse({ status: 404, description: 'Document not found.' })
+  async confirmDocumentUpload(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Param('docId') docId: string,
+  ) {
+    return this.residentsService.confirmDocumentUpload(
+      req.user.facilityId,
+      id,
+      docId,
+    );
+  }
+
+  // ── GET /residents/:id/documents ───────────────────────────────────────────
+
+  @Get(':id/documents')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'List confirmed documents for a resident' })
+  @ApiParam({ name: 'id', description: 'Resident UUID' })
+  @ApiResponse({ status: 200, description: 'Array of resident documents.' })
+  async getDocuments(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
+    return this.residentsService.getDocuments(req.user.facilityId, id);
+  }
+
   // ── GET /residents/:id/audit-trail ──────────────────────────────────────────
 
   @Get(':id/audit-trail')
