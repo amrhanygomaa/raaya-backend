@@ -135,8 +135,8 @@ jobs:
             docker stop raaya-api 2>/dev/null || true
             docker rm   raaya-api 2>/dev/null || true
 
-            # Write Google service account to file (avoids shell quoting issues with JSON)
-            printf '%s' '${{ secrets.GOOGLE_CLOUD_SERVICE_ACCOUNT_JSON }}' \
+            # Write Google service account to file via base64 (avoids shell quoting issues with JSON newlines)
+            echo '${{ secrets.GOOGLE_SA_JSON_B64 }}' | base64 -d \
               > /home/ec2-user/.google-sa.json
             chmod 600 /home/ec2-user/.google-sa.json
 
