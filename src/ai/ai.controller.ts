@@ -937,7 +937,11 @@ residentId: ${residentId}
 
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     const clientEmail = normalizeInlineText(parsed.client_email);
-    const privateKey = normalizeInlineText(parsed.private_key);
+    // Do NOT use normalizeInlineText here — it collapses whitespace and breaks PEM newlines
+    const privateKey =
+      typeof parsed.private_key === 'string'
+        ? parsed.private_key.trim()
+        : null;
     const projectId = normalizeInlineText(parsed.project_id) ?? undefined;
     if (!clientEmail || !privateKey) {
       throw new ServiceUnavailableException(
