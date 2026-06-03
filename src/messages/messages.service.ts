@@ -89,6 +89,8 @@ export class MessagesService {
       last_sender_role: string;
       last_recipient_id: string;
       last_body: string;
+      last_media_url: string | null;
+      last_media_type: string | null;
       last_is_read: boolean;
       last_created_at: string;
       unread_count: string;
@@ -110,6 +112,8 @@ export class MessagesService {
            sender_role   AS last_sender_role,
            recipient_id  AS last_recipient_id,
            body          AS last_body,
+           media_url     AS last_media_url,
+           media_type    AS last_media_type,
            is_read       AS last_is_read,
            created_at    AS last_created_at
          FROM pairs
@@ -146,6 +150,8 @@ export class MessagesService {
         sender_role: r.last_sender_role,
         recipient_id: r.last_recipient_id,
         body: r.last_body,
+        media_url: (r.last_media_url as string | null) ?? null,
+        media_type: (r.last_media_type as string | null) ?? null,
         is_read: r.last_is_read,
         created_at: r.last_created_at,
       },
