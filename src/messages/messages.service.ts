@@ -11,6 +11,8 @@ export interface Message {
   sender_role: string;
   recipient_id: string;
   body: string;
+  media_url: string | null;
+  media_type: string | null;
   is_read: boolean;
   created_at: string;
 }
@@ -34,8 +36,8 @@ export class MessagesService {
     dto: SendMessageDto,
   ): Promise<Message> {
     const res = await this.pool.query<Message>(
-      `INSERT INTO messages (facility_id, resident_id, sender_id, sender_role, recipient_id, body)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO messages (facility_id, resident_id, sender_id, sender_role, recipient_id, body, media_url, media_type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
       [
         facilityId,
@@ -44,6 +46,8 @@ export class MessagesService {
         senderRole,
         dto.recipientId,
         dto.body,
+        dto.mediaUrl ?? null,
+        dto.mediaType ?? null,
       ],
     );
     return res.rows[0];

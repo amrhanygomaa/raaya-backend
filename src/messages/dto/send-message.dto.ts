@@ -26,4 +26,22 @@ export class SendMessageDto {
   @IsOptional()
   @IsUUID()
   residentId?: string;
+
+  @ApiPropertyOptional({
+    example: 'https://cdn.example.com/media/photo.jpg',
+    description: 'Public URL of an attached file (image, document, etc.)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  mediaUrl?: string;
+
+  @ApiPropertyOptional({
+    example: 'image/jpeg',
+    description: 'MIME type or short label (image, file, audio…) of the attachment',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  mediaType?: string;
 }
