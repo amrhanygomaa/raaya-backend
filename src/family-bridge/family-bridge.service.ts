@@ -119,7 +119,7 @@ export class FamilyBridgeService {
     residentId: string,
   ): Promise<void> {
     const isStaff = roles.some((r) =>
-      ['Admin', 'Nurse', 'Doctor', 'ClinicalStaff'].includes(r),
+      ['Admin', 'Nurse', 'Doctor', 'ClinicalStaff', 'Elderly'].includes(r),
     );
     if (isStaff) return;
 
