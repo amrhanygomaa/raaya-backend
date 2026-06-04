@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Pool } from 'pg';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { PG_POOL } from '../database/database.module';
 import {
@@ -116,15 +116,16 @@ export class AiMediaService {
     }
 
     const row = result.rows[0];
-    if (this.publicBaseUrl) {
-      const base = this.publicBaseUrl.replace(/\/$/, '');
-      const computed = `${base}/${row.s3_key as string}`;
-      await this.pool.query(
-        `UPDATE ai_media SET media_url = $1 WHERE id = $2`,
-        [computed, id],
-      );
-      row.media_url = computed;
-    }
+    const mediaUrl = await getSignedUrl(
+      this.s3,
+      new GetObjectCommand({ Bucket: this.bucket, Key: row.s3_key as string }),
+      { expiresIn: 86400 },
+    );
+    await this.pool.query(
+      `UPDATE ai_media SET media_url = $1 WHERE id = $2`,
+      [mediaUrl, id],
+    );
+    row.media_url = mediaUrl;
 
     return rowToItem(row);
   }

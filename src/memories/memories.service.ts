@@ -15,7 +15,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { Pool, QueryResult } from 'pg';
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { PutObjectCommand, GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { PG_POOL } from '../database/database.module';
 import { MemoryMoment } from './memories.schema';
@@ -35,6 +35,18 @@ function rowToMoment(row: Record<string, unknown>): MemoryMoment {
   };
 }
 
+// Extracts { bucket, key } from an s3:// URI, or null if the URL is already HTTPS.
+function parseS3Uri(raw: string): { bucket: string; key: string } | null {
+  if (!raw.startsWith('s3://')) return null;
+  const withoutScheme = raw.slice(5);
+  const slashIdx = withoutScheme.indexOf('/');
+  if (slashIdx === -1) return null;
+  return {
+    bucket: withoutScheme.slice(0, slashIdx),
+    key: withoutScheme.slice(slashIdx + 1),
+  };
+}
+
 @Injectable()
 export class MemoriesService {
   private readonly logger = new Logger(MemoriesService.name);
@@ -44,6 +56,23 @@ export class MemoriesService {
   private readonly bucket = process.env.S3_MEDIA_BUCKET;
 
   constructor(@Inject(PG_POOL) private readonly pool: Pool) {}
+
+  private async resolveImageUrl(moment: MemoryMoment): Promise<MemoryMoment> {
+    const raw = moment.imageUrl;
+    if (!raw) return moment;
+    const parsed = parseS3Uri(raw);
+    if (!parsed) return moment;
+    const url = await getSignedUrl(
+      this.s3,
+      new GetObjectCommand({ Bucket: parsed.bucket, Key: parsed.key }),
+      { expiresIn: 86400 },
+    );
+    return { ...moment, imageUrl: url };
+  }
+
+  private resolveImageUrlBatch(moments: MemoryMoment[]): Promise<MemoryMoment[]> {
+    return Promise.all(moments.map((m) => this.resolveImageUrl(m)));
+  }
 
   async create(
     facilityId: string,
@@ -76,8 +105,9 @@ export class MemoriesService {
     const result: QueryResult<Record<string, unknown>> = await this.pool.query<
       Record<string, unknown>
     >(sql, params);
-    const moment = rowToMoment(result.rows[0]);
-    this.logger.log(`Memory moment created: ${moment.id}`);
+    const raw = rowToMoment(result.rows[0]);
+    this.logger.log(`Memory moment created: ${raw.id}`);
+    const moment = await this.resolveImageUrl(raw);
 
     return {
       moment,
@@ -121,7 +151,7 @@ export class MemoriesService {
     const result: QueryResult<Record<string, unknown>> = await this.pool.query<
       Record<string, unknown>
     >(sql, params);
-    return result.rows.map(rowToMoment);
+    return this.resolveImageUrlBatch(result.rows.map(rowToMoment));
   }
 
   async appreciate(facilityId: string, id: string): Promise<MemoryMoment> {
@@ -139,7 +169,7 @@ export class MemoriesService {
       throw new NotFoundException(`Memory moment ${id} not found`);
     }
 
-    return rowToMoment(result.rows[0]);
+    return this.resolveImageUrl(rowToMoment(result.rows[0]));
   }
 
   async delete(facilityId: string, id: string): Promise<{ id: string }> {

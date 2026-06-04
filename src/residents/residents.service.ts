@@ -9,7 +9,7 @@
 
 import { Injectable, Inject, NotFoundException, Logger } from '@nestjs/common';
 import { Pool, QueryResult } from 'pg';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { PG_POOL } from '../database/database.module';
 import { Resident } from './residents.schema';
@@ -458,10 +458,11 @@ export class ResidentsService {
     const contentType =
       (content.contentType as string) ?? 'application/octet-stream';
 
-    const publicBase = process.env.S3_MEDIA_PUBLIC_BASE_URL?.replace(/\/$/, '');
-    const url = publicBase
-      ? `${publicBase}/${s3Key}`
-      : `https://${this.s3Bucket}.s3.${this.s3Region}.amazonaws.com/${s3Key}`;
+    const url = await getSignedUrl(
+      this.s3,
+      new GetObjectCommand({ Bucket: this.s3Bucket, Key: s3Key }),
+      { expiresIn: 86400 },
+    );
 
     await this.pool.query(
       `UPDATE linked_records SET content = $1::jsonb WHERE id = $2`,
@@ -495,12 +496,27 @@ export class ResidentsService {
       [residentId],
     );
 
-    return result.rows.map((r) => ({
-      id: r.id as string,
-      title: r.title as string,
-      url: ((r.content as Record<string, unknown>)?.url as string) ?? '',
-      createdAt:
-        (r.recorded_at as Date)?.toISOString?.() ?? (r.recorded_at as string),
-    }));
+    return Promise.all(
+      result.rows.map(async (r) => {
+        const content = (r.content as Record<string, unknown>) ?? {};
+        const s3Key = (content.s3Key as string) ?? '';
+        let url = (content.url as string) ?? '';
+        if (s3Key) {
+          url = await getSignedUrl(
+            this.s3,
+            new GetObjectCommand({ Bucket: this.s3Bucket, Key: s3Key }),
+            { expiresIn: 86400 },
+          );
+        }
+        return {
+          id: r.id as string,
+          title: r.title as string,
+          url,
+          createdAt:
+            (r.recorded_at as Date)?.toISOString?.() ??
+            (r.recorded_at as string),
+        };
+      }),
+    );
   }
 }

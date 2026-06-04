@@ -18,9 +18,9 @@ import {
 } from '@nestjs/common';
 import { Pool, QueryResult } from 'pg';
 import { PG_POOL } from '../database/database.module';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { MediaItem, MediaUploadResult, Visit } from './family-bridge.schema';
+import { MediaItem, MediaUploadResult, MediaItemWithUrl, Visit } from './family-bridge.schema';
 import { UploadMediaDto } from './dto/upload-media.dto';
 import { ConfirmMediaDto } from './dto/confirm-media.dto';
 import { BookVisitDto } from './dto/book-visit.dto';
@@ -85,6 +85,23 @@ export class FamilyBridgeService {
     });
     this.bucket = process.env.S3_MEDIA_BUCKET ?? 'raaya-demo-media';
     this.prefix = process.env.S3_MEDIA_PREFIX ?? '';
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  //  PRESIGNED GET URL HELPER
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  private async addMediaUrl(media: MediaItem): Promise<MediaItemWithUrl> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: media.s3Key,
+    });
+    const mediaUrl = await getSignedUrl(this.s3, command, { expiresIn: 86400 });
+    return { ...media, mediaUrl };
+  }
+
+  private addMediaUrlBatch(items: MediaItem[]): Promise<MediaItemWithUrl[]> {
+    return Promise.all(items.map((m) => this.addMediaUrl(m)));
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -188,7 +205,7 @@ export class FamilyBridgeService {
     facilityId: string,
     mediaId: string,
     dto: ConfirmMediaDto,
-  ): Promise<MediaItem> {
+  ): Promise<MediaItemWithUrl> {
     const sql = `
       UPDATE media_items
          SET status = 'confirmed',
@@ -209,7 +226,7 @@ export class FamilyBridgeService {
     }
 
     this.logger.log(`Media confirmed: ${mediaId}`);
-    return rowToMedia(result.rows[0]);
+    return this.addMediaUrl(rowToMedia(result.rows[0]));
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -219,7 +236,7 @@ export class FamilyBridgeService {
   async findMedia(
     facilityId: string,
     filters?: { residentId?: string; status?: string },
-  ): Promise<MediaItem[]> {
+  ): Promise<MediaItemWithUrl[]> {
     let sql = `SELECT * FROM media_items WHERE facility_id = $1`;
     const params: unknown[] = [facilityId];
     let idx = 2;
@@ -240,7 +257,7 @@ export class FamilyBridgeService {
     const result: QueryResult<Record<string, unknown>> = await this.pool.query<
       Record<string, unknown>
     >(sql, params);
-    return result.rows.map(rowToMedia);
+    return this.addMediaUrlBatch(result.rows.map(rowToMedia));
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

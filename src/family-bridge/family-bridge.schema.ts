@@ -49,6 +49,10 @@ export interface MediaItem {
   updatedAt: string;
 }
 
+export interface MediaItemWithUrl extends MediaItem {
+  mediaUrl: string;
+}
+
 export interface MediaUploadResult {
   media: MediaItem;
   presignedUrl: string;
