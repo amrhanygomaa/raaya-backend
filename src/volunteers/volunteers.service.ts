@@ -296,20 +296,14 @@ export class VolunteersService {
     const sql = `
       INSERT INTO volunteer_bookings
         (facility_id, volunteer_id, opportunity_id, status)
-      VALUES ($1,$2,$3,'confirmed')
+      VALUES ($1,$2,$3,'pending')
       RETURNING *
     `;
     const result: QueryResult<Record<string, unknown>> = await this.pool.query<
       Record<string, unknown>
     >(sql, [facilityId, profile.id, dto.opportunityId]);
 
-    // Increment filled_slots
-    await this.pool.query<Record<string, unknown>>(
-      `UPDATE volunteer_opportunities SET filled_slots = filled_slots + 1 WHERE id = $1`,
-      [dto.opportunityId],
-    );
-
-    this.logger.log(`Booking created: ${String(result.rows[0].id)}`);
+    this.logger.log(`Booking created (pending): ${String(result.rows[0].id)}`);
     const enriched = await this.getBookingById(
       facilityId,
       userId,
@@ -430,6 +424,87 @@ export class VolunteersService {
 
     this.logger.log(`Booking ${bookingId} updated to ${status}`);
     return this.getBookingById(facilityId, userId, bookingId);
+  }
+
+  // ── ADMIN BOOKING MANAGEMENT ────────────────────────────────────────────
+
+  async getAdminBookings(
+    facilityId: string,
+    opportunityId?: string,
+  ): Promise<(VolunteerBooking & { volunteerName: string; volunteerUserId: string })[]> {
+    const sql = `
+      SELECT b.*,
+             o.title, o.org, o.date_info, o.points, o.hours, o.description, o.tags,
+             p.name AS volunteer_name,
+             p.user_id AS volunteer_user_id
+        FROM volunteer_bookings b
+        JOIN volunteer_opportunities o ON o.id = b.opportunity_id
+        JOIN volunteer_profiles p ON p.id = b.volunteer_id
+       WHERE b.facility_id = $1
+         ${opportunityId ? 'AND b.opportunity_id = $2' : ''}
+       ORDER BY b.created_at DESC
+    `;
+    const params: string[] = opportunityId
+      ? [facilityId, opportunityId]
+      : [facilityId];
+    const result = await this.pool.query<Record<string, unknown>>(sql, params);
+    return result.rows.map((row) => ({
+      ...rowToBooking(row),
+      volunteerName: (row.volunteer_name as string) ?? 'متطوع',
+      volunteerUserId: (row.volunteer_user_id as string) ?? '',
+    }));
+  }
+
+  async adminUpdateBookingStatus(
+    facilityId: string,
+    bookingId: string,
+    status: 'confirmed' | 'cancelled',
+  ): Promise<VolunteerBooking & { volunteerName: string; volunteerUserId: string }> {
+    const result = await this.pool.query<Record<string, unknown>>(
+      `
+        SELECT b.*, p.name AS volunteer_name, p.user_id AS volunteer_user_id
+          FROM volunteer_bookings b
+          JOIN volunteer_profiles p ON p.id = b.volunteer_id
+         WHERE b.id = $1 AND b.facility_id = $2
+      `,
+      [bookingId, facilityId],
+    );
+    if (result.rowCount === 0) {
+      throw new NotFoundException(`Booking ${bookingId} not found`);
+    }
+    const current = result.rows[0];
+    if (current.status === status) {
+      return {
+        ...rowToBooking(current),
+        volunteerName: (current.volunteer_name as string) ?? 'متطوع',
+        volunteerUserId: (current.volunteer_user_id as string) ?? '',
+      };
+    }
+
+    const updated = await this.pool.query<Record<string, unknown>>(
+      `UPDATE volunteer_bookings SET status = $1 WHERE id = $2 AND facility_id = $3 RETURNING *`,
+      [status, bookingId, facilityId],
+    );
+
+    if (status === 'confirmed') {
+      await this.pool.query(
+        `UPDATE volunteer_opportunities SET filled_slots = filled_slots + 1 WHERE id = $1`,
+        [current.opportunity_id],
+      );
+    }
+    if (status === 'cancelled' && current.status === 'confirmed') {
+      await this.pool.query(
+        `UPDATE volunteer_opportunities SET filled_slots = GREATEST(filled_slots - 1, 0) WHERE id = $1`,
+        [current.opportunity_id],
+      );
+    }
+
+    this.logger.log(`Admin updated booking ${bookingId} to ${status}`);
+    return {
+      ...rowToBooking(updated.rows[0]),
+      volunteerName: (current.volunteer_name as string) ?? 'متطوع',
+      volunteerUserId: (current.volunteer_user_id as string) ?? '',
+    };
   }
 
   // ── CERTIFICATES (US-14-04) ─────────────────────────────────────────────

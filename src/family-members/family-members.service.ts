@@ -2,6 +2,10 @@ import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Pool } from 'pg';
 import { PG_POOL } from '../database/database.module';
 import { CreateFamilyMemberDto } from './dto/create-family-member.dto';
+import {
+  AdminGetUserCommand,
+  CognitoIdentityProviderClient,
+} from '@aws-sdk/client-cognito-identity-provider';
 
 export interface FamilyMember {
   id: string;
@@ -12,6 +16,7 @@ export interface FamilyMember {
   email?: string;
   isPrimary: boolean;
   notes?: string;
+  userId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -36,8 +41,38 @@ function rowToMember(row: Record<string, unknown>): FamilyMember {
 @Injectable()
 export class FamilyMembersService {
   private readonly logger = new Logger(FamilyMembersService.name);
+  private readonly cognito: CognitoIdentityProviderClient;
+  private readonly userPoolId?: string;
 
-  constructor(@Inject(PG_POOL) private readonly pool: Pool) {}
+  constructor(@Inject(PG_POOL) private readonly pool: Pool) {
+    this.cognito = new CognitoIdentityProviderClient({
+      region: process.env.COGNITO_REGION ?? process.env.AWS_REGION ?? 'us-east-1',
+    });
+    this.userPoolId = process.env.COGNITO_USER_POOL_ID;
+  }
+
+  private async lookupCognitoSub(email: string): Promise<string | undefined> {
+    if (!this.userPoolId || !email) return undefined;
+    try {
+      const res = await this.cognito.send(
+        new AdminGetUserCommand({ UserPoolId: this.userPoolId, Username: email }),
+      );
+      return res.UserAttributes?.find((a) => a.Name === 'sub')?.Value;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private async enrichWithUserId(members: FamilyMember[]): Promise<FamilyMember[]> {
+    return Promise.all(
+      members.map(async (m) => {
+        if (m.email) {
+          m.userId = await this.lookupCognitoSub(m.email);
+        }
+        return m;
+      }),
+    );
+  }
 
   // قائمة جهات الأسرة لمقيم محدد (مع التحقق من الـ facility)
   async findByResident(
@@ -59,7 +94,7 @@ export class FamilyMembersService {
        ORDER BY is_primary DESC, full_name ASC`,
       [residentId],
     );
-    return result.rows.map(rowToMember);
+    return this.enrichWithUserId(result.rows.map(rowToMember));
   }
 
   async findByEmail(
@@ -74,7 +109,7 @@ export class FamilyMembersService {
        ORDER BY fm.is_primary DESC, fm.full_name ASC`,
       [facilityId, email],
     );
-    return result.rows.map(rowToMember);
+    return this.enrichWithUserId(result.rows.map(rowToMember));
   }
 
   async findOne(facilityId: string, id: string): Promise<FamilyMember> {

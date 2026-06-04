@@ -273,6 +273,48 @@ export class VolunteersController {
     );
   }
 
+  // ── ADMIN BOOKING MANAGEMENT ──────────────────────────────────────────────
+
+  @Get('admin/bookings')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'List all bookings for the facility (admin)' })
+  @ApiResponse({ status: 200, description: 'Array of bookings with volunteer info.' })
+  async getAdminBookings(@Request() req: AuthenticatedRequest) {
+    return this.volunteersService.getAdminBookings(req.user.facilityId);
+  }
+
+  @Patch('admin/bookings/:id/approve')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Approve a pending volunteer booking (admin)' })
+  @ApiParam({ name: 'id', description: 'Booking UUID' })
+  @ApiResponse({ status: 200, description: 'Booking approved.' })
+  async approveBooking(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
+    return this.volunteersService.adminUpdateBookingStatus(
+      req.user.facilityId,
+      id,
+      'confirmed',
+    );
+  }
+
+  @Patch('admin/bookings/:id/reject')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Reject a volunteer booking (admin)' })
+  @ApiParam({ name: 'id', description: 'Booking UUID' })
+  @ApiResponse({ status: 200, description: 'Booking rejected.' })
+  async rejectBooking(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
+    return this.volunteersService.adminUpdateBookingStatus(
+      req.user.facilityId,
+      id,
+      'cancelled',
+    );
+  }
+
   @Post('profile/public-link')
   @UseGuards(AuthGuard('jwt'))
   @ApiOperation({
